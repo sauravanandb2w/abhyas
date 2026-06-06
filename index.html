@@ -1357,6 +1357,10 @@ async function pullFromCloud() {
   }
 }
 
+function uniqueFilename(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.jpg`;
+}
+
 async function pushLocalToCloud() {
   const s = loadSyncSession();
   if (!s) return;
@@ -1370,8 +1374,8 @@ async function pushLocalToCloud() {
         const img = a.images[i];
         // Already a URL? Skip upload.
         if (typeof img === "string" && img.startsWith("http")) { urls.push(img); continue; }
-        // Upload base64 to GitHub
-        const url = await uploadPhotoToGitHub(a.id, "page-" + (i+1) + ".jpg", img);
+        // Upload base64 to GitHub with unique filename (no collisions)
+        const url = await uploadPhotoToGitHub(a.id, uniqueFilename("p"), img);
         if (url) urls.push(url); else urls.push(img); // fallback to base64
       }
       await supaFetch(`/abhyas_answers`, {
@@ -1403,7 +1407,7 @@ async function pushEvalToCloud(answerId, evalData) {
   for (let i = 0; i < (evalData.images || []).length; i++) {
     const img = evalData.images[i];
     if (typeof img === "string" && img.startsWith("http")) { urls.push(img); continue; }
-    const url = await uploadPhotoToGitHub(answerId, "eval-" + (i+1) + ".jpg", img);
+    const url = await uploadPhotoToGitHub(answerId, uniqueFilename("eval"), img);
     if (url) urls.push(url); else urls.push(img);
   }
   await supaFetch(`/abhyas_evaluations`, {
@@ -1503,7 +1507,7 @@ async function pushSingleAnswerToCloud(a) {
     for (let i = 0; i < (a.images || []).length; i++) {
       const img = a.images[i];
       if (typeof img === "string" && img.startsWith("http")) { urls.push(img); continue; }
-      const url = await uploadPhotoToGitHub(a.id, "page-" + (i+1) + ".jpg", img);
+      const url = await uploadPhotoToGitHub(a.id, uniqueFilename("p"), img);
       if (url) urls.push(url); else urls.push(img);
     }
     await supaFetch(`/abhyas_answers`, {
