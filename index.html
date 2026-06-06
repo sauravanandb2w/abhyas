@@ -1331,6 +1331,14 @@ async function ensureFreshToken() {
   }
 }
 
+async function parseResBody(res) {
+  // Robust against empty bodies (Supabase returns empty on successful upsert without return=representation)
+  if (res.status === 204) return null;
+  const text = await res.text();
+  if (!text || !text.trim()) return null;
+  try { return JSON.parse(text); } catch { return text; }
+}
+
 async function supaFetch(path, init = {}) {
   const s = await ensureFreshToken();
   if (!s) throw new Error("not signed in");
@@ -1352,7 +1360,7 @@ async function supaFetch(path, init = {}) {
         if (fresh && fresh.access_token !== s.access_token) {
           headers.Authorization = "Bearer " + fresh.access_token;
           const retry = await fetch(`${SUPA_URL}/rest/v1${path}`, Object.assign({}, init, { headers }));
-          if (retry.ok) return retry.status === 204 ? null : retry.json();
+          if (retry.ok) return await parseResBody(retry);
           const tt = await retry.text();
           throw new Error(`Supabase ${retry.status}: ${tt}`);
         }
@@ -1360,7 +1368,7 @@ async function supaFetch(path, init = {}) {
     }
     throw new Error(`Supabase ${res.status}: ${t}`);
   }
-  return res.status === 204 ? null : res.json();
+  return await parseResBody(res);
 }
 
 async function pullFromCloud() {
