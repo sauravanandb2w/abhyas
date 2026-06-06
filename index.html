@@ -168,6 +168,10 @@
   .view { display: none; }
   .view.active { display: block; }
   .toast { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: 12px; font-weight: 500; font-size: 14px; z-index: 300; }
+  .sync-pill { background: var(--card); border: 1px solid var(--line); color: var(--muted); padding: 4px 12px; border-radius: 999px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+  .sync-pill.online { color: var(--good); border-color: var(--good); }
+  .sync-pill.offline { color: var(--muted); }
+  .sync-status { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
 
   /* Source colors */
   .src-pyq { background: var(--src-pyq); }
@@ -188,6 +192,7 @@
         <div class="brand-sub">अभ्यास · practice log</div>
       </div>
       <div class="icon-row">
+        <button class="sync-pill" id="syncBtn" onclick="openSyncModal()">☁ Sync</button>
         <button class="icon-btn" onclick="goView('saved')" title="Saved">★</button>
       </div>
     </div>
@@ -349,6 +354,42 @@
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
   <div class="close" onclick="closeLightbox()">×</div>
   <img id="lightboxImg" alt="answer page"/>
+</div>
+
+<!-- Sync / sign-in modal -->
+<div class="modal-bg" id="syncModal" onclick="if(event.target===this)closeSyncModal()">
+  <div class="modal">
+    <h2 id="syncTitle">☁ Cloud sync</h2>
+    <div id="syncSignedOutView">
+      <p style="font-size: 13px; color: var(--muted); line-height: 1.55; margin-bottom: 14px;">
+        Sign in to sync your attempts and evaluations across devices. Same email/password as your CA app. Photos upload to GitHub (your <code>abhyas</code> repo).
+      </p>
+      <label>Email</label>
+      <input id="syncEmail" type="email" placeholder="you@gmail.com"/>
+      <label>Password</label>
+      <input id="syncPassword" type="password" placeholder="your password"/>
+      <label>GitHub Personal Access Token (one-time)</label>
+      <input id="syncPAT" type="password" placeholder="github_pat_..."/>
+      <p style="font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5;">
+        Create at <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color: var(--accent-2);">github.com/settings/tokens</a> · Fine-grained · Repository access: only <code>sauravanandb2w/abhyas</code> · Permissions: <b>Contents: Read and write</b>
+      </p>
+      <div class="sync-status" id="syncStatus" style="margin-top: 10px;"></div>
+      <div class="footer">
+        <button class="cancel" onclick="closeSyncModal()">Cancel</button>
+        <button class="save" onclick="doSignIn()">Sign in & sync</button>
+      </div>
+    </div>
+    <div id="syncSignedInView" style="display:none;">
+      <p style="font-size: 13px; color: var(--good); margin-bottom: 14px;">
+        ✓ Signed in as <b id="syncEmailDisplay"></b>. Data syncs to Supabase + photos to GitHub.
+      </p>
+      <div class="sync-status" id="syncStatusIn"></div>
+      <div class="footer">
+        <button class="cancel" onclick="closeSyncModal()">Close</button>
+        <button class="save" style="background: var(--bad);" onclick="doSignOut()">Sign out</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -614,19 +655,50 @@ function toggleSaveAnswer() {
 }
 
 // ============ SHARE FOR EVALUATION ============
+// URL-safe base64 encode (handles + / = that get mangled in WhatsApp/messengers)
+function urlSafeEncode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 async function shareForEval() {
   if (!viewingAnswerId) return;
   const a = state.answers.find(x => x.id === viewingAnswerId);
   if (!a) return;
 
-  // Compress images to share-friendly size
+  // Ask which teacher
+  const lastTeacher = localStorage.getItem("abhyas-last-teacher") || "";
+  const teacherName = prompt(
+    "Send to which teacher? (e.g. \"Neeraj sir - Polity\")\n\nThis will pre-fill in the evaluation form so they don't type their own name.",
+    lastTeacher
+  );
+  if (teacherName === null) return; // cancelled
+  const teacher = (teacherName || "").trim();
+  if (teacher) localStorage.setItem("abhyas-last-teacher", teacher);
+
+  // Ask user if they want photos in the link or sent separately
+  const photoCount = (a.images || []).length;
+  let includePhotos = true;
+  if (photoCount > 2) {
+    includePhotos = confirm(
+      `This attempt has ${photoCount} photos. Include them in the share link?\n\n` +
+      `OK: Photos embedded in link (link will be ~${photoCount * 30}KB — works in most apps, may be too long for some).\n\n` +
+      `Cancel: Photos NOT in link (link stays small, ~2KB). You'll need to send photos separately via WhatsApp.`
+    );
+  }
+
   toast("Preparing share link...");
   const compressedImages = [];
-  for (const img of (a.images || []).slice(0, 4)) { // limit to 4 photos
-    try {
-      const small = await compressForShare(img, 900, 0.55);
-      compressedImages.push(small);
-    } catch (e) { console.warn("compress for share", e); }
+  if (includePhotos) {
+    // Aggressive compression so URL fits everywhere
+    for (const img of (a.images || []).slice(0, 3)) { // cap at 3 photos
+      try {
+        const small = await compressForShare(img, 700, 0.45);
+        compressedImages.push(small);
+      } catch (e) { console.warn("compress for share", e); }
+    }
   }
 
   const sharePayload = {
@@ -640,24 +712,35 @@ async function shareForEval() {
     attemptDate: a.attemptDate,
     notes: a.notes,
     images: compressedImages,
+    teacherName: teacher,  // pre-fill in eval form
     userEmail: "anandsaurav100@gmail.com"
   };
 
   const json = JSON.stringify(sharePayload);
-  const encoded = btoa(encodeURIComponent(json));
+  const encoded = urlSafeEncode(json);
   const baseUrl = location.href.replace(/index\.html.*$/, "").replace(/\?.*$/, "").replace(/#.*$/, "");
-  const evalUrl = baseUrl + "eval.html#a=" + encoded;
+  // Use ?a= (query) — more robust than #a= across messengers
+  const evalUrl = baseUrl + "eval.html?a=" + encoded;
 
   const sizeKB = Math.round(evalUrl.length / 1024);
 
-  // Build a "to teacher" message
-  const teacherMessage =
-    "Sir / Ma'am,\n\n" +
-    "Please evaluate my answer at the link below. The page has the question, my handwritten attempt, and a form for your feedback.\n\n" +
-    evalUrl + "\n\n" +
-    "Thank you,\nSaurav";
+  const greeting = teacher ? teacher + "," : "Sir / Ma'am,";
+  let teacherMessage;
+  if (includePhotos) {
+    teacherMessage =
+      greeting + "\n\n" +
+      "Please evaluate my answer at the link below. The page has the question, my handwritten attempt photos, and a quick feedback form (all fields optional).\n\n" +
+      evalUrl + "\n\n" +
+      "Thank you,\nSaurav";
+  } else {
+    teacherMessage =
+      greeting + "\n\n" +
+      "Please evaluate my answer. The link below has the question and a quick feedback form (all fields optional).\n\n" +
+      evalUrl + "\n\n" +
+      "I'll send the photos of my handwritten answer separately in the next message.\n\n" +
+      "Thank you,\nSaurav";
+  }
 
-  // Try Web Share API (native phone share sheet) first
   if (navigator.share) {
     try {
       await navigator.share({
@@ -671,17 +754,21 @@ async function shareForEval() {
     }
   }
 
-  // Fallback: copy to clipboard
   if (navigator.clipboard) {
     await navigator.clipboard.writeText(teacherMessage);
-    alert(`✓ Link copied to clipboard (${sizeKB} KB).\n\nPaste in WhatsApp / email to send to your teacher.\n\nThe message includes:\n- A short note\n- The link to view your answer + fill evaluation form`);
+    alert(
+      "✓ Message copied to clipboard (" + sizeKB + " KB link).\n\n" +
+      "Paste in WhatsApp / email to send to your teacher.\n\n" +
+      (includePhotos
+        ? "Photos are embedded in the link."
+        : "Remember to send photos in a separate message.")
+    );
   } else {
-    // Final fallback
     prompt("Copy this link and send to your teacher:", evalUrl);
   }
 }
 
-function compressForShare(dataUrl, maxW = 900, q = 0.55) {
+function compressForShare(dataUrl, maxW = 700, q = 0.45) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -904,6 +991,300 @@ function toast(msg) {
 }
 
 renderHome();
+
+// ============ CLOUD SYNC: SUPABASE (metadata) + GITHUB (photos) ============
+const SUPA_URL = "https://hqrxdvrxzmlntejwojep.supabase.co";
+const SUPA_KEY = "sb_publishable_ntxmQLA_Qpb6SuQDNlYuug_EM8TuNhN";
+const GH_REPO = "sauravanandb2w/abhyas";
+
+function loadSyncSession() {
+  try { return JSON.parse(localStorage.getItem("abhyas-supa-session") || "null"); } catch { return null; }
+}
+function saveSyncSession(s) { if (s) localStorage.setItem("abhyas-supa-session", JSON.stringify(s)); else localStorage.removeItem("abhyas-supa-session"); }
+function loadPAT() { return localStorage.getItem("abhyas-github-pat") || ""; }
+function savePAT(t) { if (t) localStorage.setItem("abhyas-github-pat", t); else localStorage.removeItem("abhyas-github-pat"); }
+
+function updateSyncBtn() {
+  const session = loadSyncSession();
+  const btn = document.getElementById("syncBtn");
+  if (!btn) return;
+  if (session?.access_token) { btn.classList.add("online"); btn.classList.remove("offline"); btn.textContent = "☁ Synced"; }
+  else { btn.classList.add("offline"); btn.classList.remove("online"); btn.textContent = "☁ Sync"; }
+}
+updateSyncBtn();
+
+function openSyncModal() {
+  const s = loadSyncSession();
+  document.getElementById("syncSignedOutView").style.display = s ? "none" : "block";
+  document.getElementById("syncSignedInView").style.display = s ? "block" : "none";
+  if (s) document.getElementById("syncEmailDisplay").textContent = s.email || "";
+  document.getElementById("syncPAT").value = loadPAT();
+  document.getElementById("syncStatus").textContent = "";
+  document.getElementById("syncModal").classList.add("open");
+}
+function closeSyncModal() { document.getElementById("syncModal").classList.remove("open"); }
+
+async function doSignIn() {
+  const email = document.getElementById("syncEmail").value.trim();
+  const password = document.getElementById("syncPassword").value;
+  const pat = document.getElementById("syncPAT").value.trim();
+  const status = document.getElementById("syncStatus");
+  if (!email || !password) { status.textContent = "Email + password required"; return; }
+  status.textContent = "Signing in...";
+  try {
+    const res = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { "apikey": SUPA_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.access_token) throw new Error(data.error_description || data.msg || "Sign-in failed");
+    saveSyncSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      user_id: data.user.id,
+      email: data.user.email,
+      expires_at: Date.now() + (data.expires_in || 3600) * 1000
+    });
+    if (pat) savePAT(pat);
+    document.getElementById("syncPassword").value = "";
+    updateSyncBtn();
+    status.textContent = "Signed in. Pulling cloud data...";
+    await pullFromCloud();
+    await pushLocalToCloud();
+    status.textContent = "✓ Synced. ";
+    setTimeout(() => { closeSyncModal(); renderHome(); }, 800);
+  } catch (e) {
+    status.textContent = "✗ " + (e.message || String(e));
+  }
+}
+
+function doSignOut() {
+  saveSyncSession(null);
+  // keep PAT (lets them sign back in faster). Comment next line if you want to clear it too.
+  // savePAT(null);
+  updateSyncBtn();
+  closeSyncModal();
+  toast("Signed out (local cache preserved)");
+}
+
+// ===== Supabase REST helpers =====
+async function supaFetch(path, init = {}) {
+  const s = loadSyncSession();
+  if (!s) throw new Error("not signed in");
+  const headers = Object.assign({
+    "apikey": SUPA_KEY,
+    "Authorization": "Bearer " + s.access_token,
+    "Content-Type": "application/json"
+  }, init.headers || {});
+  const res = await fetch(`${SUPA_URL}/rest/v1${path}`, Object.assign({}, init, { headers }));
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Supabase ${res.status}: ${t}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+async function pullFromCloud() {
+  const s = loadSyncSession();
+  if (!s) return;
+  try {
+    const [answers, evals] = await Promise.all([
+      supaFetch(`/abhyas_answers?user_id=eq.${s.user_id}&order=created_at.desc`),
+      supaFetch(`/abhyas_evaluations?user_id=eq.${s.user_id}`)
+    ]);
+    // Build evaluations index by answer_id
+    const evalByAns = {};
+    (evals || []).forEach(e => { evalByAns[e.answer_id] = e; });
+    // Convert to local format
+    state.answers = (answers || []).map(row => ({
+      id: row.id,
+      source: row.source,
+      paper: row.paper,
+      topic: row.topic,
+      question: row.question,
+      marks: row.marks || "",
+      year: row.year || "",
+      attemptDate: row.attempt_date || "",
+      selfScore: row.self_score || "",
+      timeMin: row.time_min || "",
+      notes: row.notes || "",
+      images: row.image_urls || [],
+      createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+      evaluation: evalByAns[row.id] ? {
+        by: evalByAns[row.id].by_name || "",
+        date: evalByAns[row.id].date || "",
+        score: evalByAns[row.id].score || "",
+        comments: evalByAns[row.id].comments || "",
+        strengths: evalByAns[row.id].strengths || "",
+        weaknesses: evalByAns[row.id].weaknesses || "",
+        other: evalByAns[row.id].other || "",
+        images: evalByAns[row.id].image_urls || []
+      } : null
+    }));
+    save();
+  } catch (e) {
+    console.warn("pullFromCloud", e);
+  }
+}
+
+async function pushLocalToCloud() {
+  const s = loadSyncSession();
+  if (!s) return;
+  const localOnly = state.answers.filter(a => !a._cloudSynced);
+  if (localOnly.length === 0) return;
+  let migrated = 0;
+  for (const a of localOnly) {
+    try {
+      const urls = [];
+      for (let i = 0; i < (a.images || []).length; i++) {
+        const img = a.images[i];
+        // Already a URL? Skip upload.
+        if (typeof img === "string" && img.startsWith("http")) { urls.push(img); continue; }
+        // Upload base64 to GitHub
+        const url = await uploadPhotoToGitHub(a.id, "page-" + (i+1) + ".jpg", img);
+        if (url) urls.push(url); else urls.push(img); // fallback to base64
+      }
+      await supaFetch(`/abhyas_answers`, {
+        method: "POST",
+        headers: { "Prefer": "resolution=merge-duplicates" },
+        body: JSON.stringify({
+          id: a.id, user_id: s.user_id,
+          source: a.source, paper: a.paper, topic: a.topic,
+          question: a.question, marks: a.marks || null, year: a.year || null,
+          attempt_date: a.attemptDate || null,
+          self_score: a.selfScore || null, time_min: a.timeMin || null,
+          notes: a.notes || null,
+          image_urls: urls
+        })
+      });
+      if (a.evaluation) await pushEvalToCloud(a.id, a.evaluation);
+      a._cloudSynced = true;
+      migrated++;
+    } catch (e) { console.warn("push answer", a.id, e); }
+  }
+  save();
+  if (migrated > 0) toast(`✓ Synced ${migrated} attempt(s) to cloud`);
+}
+
+async function pushEvalToCloud(answerId, evalData) {
+  const s = loadSyncSession();
+  if (!s) return;
+  const urls = [];
+  for (let i = 0; i < (evalData.images || []).length; i++) {
+    const img = evalData.images[i];
+    if (typeof img === "string" && img.startsWith("http")) { urls.push(img); continue; }
+    const url = await uploadPhotoToGitHub(answerId, "eval-" + (i+1) + ".jpg", img);
+    if (url) urls.push(url); else urls.push(img);
+  }
+  await supaFetch(`/abhyas_evaluations`, {
+    method: "POST",
+    headers: { "Prefer": "resolution=merge-duplicates" },
+    body: JSON.stringify({
+      id: "eval-" + answerId,
+      answer_id: answerId, user_id: s.user_id,
+      by_name: evalData.by || null, date: evalData.date || null,
+      score: evalData.score || null, comments: evalData.comments || null,
+      strengths: evalData.strengths || null, weaknesses: evalData.weaknesses || null,
+      other: evalData.other || null,
+      image_urls: urls
+    })
+  });
+}
+
+// ===== GitHub photo upload =====
+async function uploadPhotoToGitHub(answerId, filename, base64DataUrl) {
+  const pat = loadPAT();
+  if (!pat) return null;
+  if (typeof base64DataUrl !== "string" || !base64DataUrl.startsWith("data:")) return null;
+  const b64 = base64DataUrl.split(",")[1];
+  const path = `data/photos/${answerId}/${filename}`;
+  const url = `https://api.github.com/repos/${GH_REPO}/contents/${path}`;
+  try {
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Authorization": "token " + pat,
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: `Upload ${path}`,
+        content: b64
+      })
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      console.warn("GitHub upload failed", res.status, t);
+      return null;
+    }
+    // Public URL via GitHub Pages
+    return `https://sauravanandb2w.github.io/abhyas/${path}`;
+  } catch (e) {
+    console.warn("GitHub upload exception", e);
+    return null;
+  }
+}
+
+// ===== Hook save to also push to cloud =====
+const originalSaveAddAnswer = saveAddAnswer;
+saveAddAnswer = function() {
+  const beforeLen = state.answers.length;
+  originalSaveAddAnswer();
+  // After save, if signed in, push the new one
+  if (state.answers.length > beforeLen && loadSyncSession()) {
+    const newAnswer = state.answers[0]; // unshift puts at start
+    pushSingleAnswerToCloud(newAnswer).catch(e => console.warn(e));
+  }
+};
+const originalSaveAddEval = saveAddEval;
+saveAddEval = function() {
+  originalSaveAddEval();
+  if (loadSyncSession() && viewingAnswerId) {
+    const a = state.answers.find(x => x.id === viewingAnswerId);
+    if (a && a.evaluation) pushEvalToCloud(a.id, a.evaluation).catch(e => console.warn(e));
+  }
+};
+
+async function pushSingleAnswerToCloud(a) {
+  const s = loadSyncSession();
+  if (!s) return;
+  toast("Uploading to cloud...");
+  try {
+    const urls = [];
+    for (let i = 0; i < (a.images || []).length; i++) {
+      const img = a.images[i];
+      if (typeof img === "string" && img.startsWith("http")) { urls.push(img); continue; }
+      const url = await uploadPhotoToGitHub(a.id, "page-" + (i+1) + ".jpg", img);
+      if (url) urls.push(url); else urls.push(img);
+    }
+    await supaFetch(`/abhyas_answers`, {
+      method: "POST",
+      headers: { "Prefer": "resolution=merge-duplicates" },
+      body: JSON.stringify({
+        id: a.id, user_id: s.user_id,
+        source: a.source, paper: a.paper, topic: a.topic,
+        question: a.question, marks: a.marks || null, year: a.year || null,
+        attempt_date: a.attemptDate || null,
+        self_score: a.selfScore || null, time_min: a.timeMin || null,
+        notes: a.notes || null,
+        image_urls: urls
+      })
+    });
+    // Replace base64 in local cache with URLs (saves localStorage space)
+    a.images = urls;
+    a._cloudSynced = true;
+    save();
+    toast("✓ Saved to cloud");
+  } catch (e) {
+    toast("Cloud save failed (local saved): " + (e.message || ""));
+  }
+}
+
+// On app load, if signed in, do a background pull to catch updates from other devices
+if (loadSyncSession()) {
+  setTimeout(() => pullFromCloud().then(() => renderHome()), 500);
+}
 </script>
 </body>
 </html>

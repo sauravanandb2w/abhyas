@@ -116,23 +116,27 @@
 
     <div class="form-card">
       <h2>📋 Your evaluation</h2>
+      <p style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">All fields are optional. Fill whatever's useful — even just a score or one comment is helpful.</p>
 
       <div class="row">
-        <div><label>Your name</label><input id="evalBy" placeholder="Sir / Ma'am name"/></div>
+        <div><label>Your name (pre-filled)</label><input id="evalBy" placeholder="Sir / Ma'am name"/></div>
         <div><label>Date</label><input id="evalDate" type="date"/></div>
       </div>
 
-      <label>Score awarded</label>
+      <label>Marks / score</label>
       <input id="evalScore" placeholder="9 / 15"/>
 
       <label>Detailed comments</label>
-      <textarea id="evalComments" placeholder="Strong analysis but introduction lacked context. Suggest adding 1-2 background sentences. Missed two dimensions of the topic. Diagram on page 2 was good — keep that style."></textarea>
+      <textarea id="evalComments" placeholder="Strong analysis but introduction lacked context. Suggest adding 1-2 background sentences. Diagram on page 2 was good."></textarea>
 
       <label>💚 Strengths (comma-separated)</label>
       <input id="evalStrengths" placeholder="strong structure, good examples, clear handwriting"/>
 
       <label>🩹 Areas to work on (comma-separated)</label>
       <input id="evalWeaknesses" placeholder="weak intro, no diagram, missed dimension"/>
+
+      <label>Any other comments</label>
+      <textarea id="evalOther" placeholder="Read more on this theme · attempt similar question from 2019 paper · check the Hindu editorial of 14 May..." style="min-height: 70px;"></textarea>
 
       <div class="send-actions">
         <a href="#" class="send-btn" id="emailBtn">📧 Send via Email</a>
@@ -163,26 +167,47 @@
 </div>
 
 <script>
-// Read attempt data from URL hash
-function readAttemptFromHash() {
-  try {
-    const hash = location.hash.replace(/^#a=/, "");
-    if (!hash) return null;
-    const json = decodeURIComponent(atob(hash));
-    return JSON.parse(json);
-  } catch (e) {
-    console.error("decode error", e);
-    return null;
-  }
+// URL-safe base64 helpers (handle + / = chars that get mangled in WhatsApp/etc)
+function urlSafeDecode(s) {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = (4 - (b64.length % 4)) % 4;
+  const bin = atob(b64 + "=".repeat(pad));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
 }
 
-const a = readAttemptFromHash();
+// Read attempt data from URL — try query param first (more robust), then hash
+function readAttemptFromUrl() {
+  // Try ?a=... first
+  const params = new URLSearchParams(location.search);
+  let encoded = params.get("a");
+  // Fallback to #a=...
+  if (!encoded && location.hash.startsWith("#a=")) {
+    encoded = location.hash.slice(3);
+  }
+  if (!encoded) return { err: "No data in URL. The link may have been truncated. Ask Saurav for a fresh link." };
+  try {
+    const json = urlSafeDecode(encoded);
+    return { data: JSON.parse(json) };
+  } catch (e) {
+    console.error("decode error", e);
+    return { err: "Link data couldn't be decoded. It may have been corrupted when shared. Ask Saurav to resend." };
+  }
+}
+function readAttemptFromHash() {  // legacy alias
+  const r = readAttemptFromUrl();
+  return r.data || null;
+}
+
+const result = readAttemptFromUrl();
+const a = result.data;
 
 if (!a) {
   document.getElementById("attemptView").style.display = "none";
   const err = document.getElementById("errorBox");
   err.style.display = "block";
-  err.innerHTML = "This evaluation link is invalid or expired. Please ask Saurav for a fresh link.";
+  err.innerHTML = result.err + "<br><br><small style='opacity:0.8'>Tech detail: hash length = " + location.hash.length + " · query length = " + location.search.length + "</small>";
 } else {
   renderAttempt(a);
   setupSendButtons(a);
@@ -223,6 +248,10 @@ function renderAttempt(a) {
 
   // pre-fill date with today
   document.getElementById("evalDate").value = new Date().toISOString().slice(0,10);
+  // pre-fill teacher name if Saurav included it
+  if (a.teacherName) {
+    document.getElementById("evalBy").value = a.teacherName;
+  }
 }
 
 function gatherEval() {
@@ -232,35 +261,36 @@ function gatherEval() {
     score: document.getElementById("evalScore").value.trim(),
     comments: document.getElementById("evalComments").value.trim(),
     strengths: document.getElementById("evalStrengths").value.trim(),
-    weaknesses: document.getElementById("evalWeaknesses").value.trim()
+    weaknesses: document.getElementById("evalWeaknesses").value.trim(),
+    other: document.getElementById("evalOther").value.trim()
   };
 }
 
 function formatEvalText(e, a) {
   const SOURCES = { pyq: "PYQ", test: "Test Series", teacher: "Teacher's Q", mock: "Mock", random: "Random" };
   const PAPERS = { gs1: "GS Paper I", gs2: "GS Paper II", gs3: "GS Paper III", gs4: "GS Paper IV", essay: "Essay", math: "Math Optional" };
-  return [
+  const lines = [
     "═══════════════════════════",
-    "📋 Abhyas Answer Evaluation",
+    `📋 Evaluation from ${e.by}`,
     "═══════════════════════════",
     "",
-    `Question (${SOURCES[a.source]||a.source} · ${PAPERS[a.paper]||a.paper} · ${a.year||""} · ${a.marks||""}M):`,
+    `Question (${SOURCES[a.source]||a.source} · ${PAPERS[a.paper]||a.paper}${a.year?' · '+a.year:''}${a.marks?' · '+a.marks+'M':''}):`,
     a.question || "",
     "",
-    `Evaluated by: ${e.by}`,
     `Date: ${e.date}`,
-    `Score: ${e.score || "(not given)"}`,
-    "",
-    "Comments:",
-    e.comments || "(no comments)",
-    "",
-    `💚 Strengths: ${e.strengths || "(none listed)"}`,
-    `🩹 Areas to improve: ${e.weaknesses || "(none listed)"}`,
-    "",
+    `Score: ${e.score || "—"}`,
+    ""
+  ];
+  if (e.comments) lines.push("Comments:", e.comments, "");
+  if (e.strengths) lines.push("💚 Strengths: " + e.strengths, "");
+  if (e.weaknesses) lines.push("🩹 Areas to improve: " + e.weaknesses, "");
+  if (e.other) lines.push("Any other:", e.other, "");
+  lines.push(
     "═══════════════════════════",
     `Attempt ID: ${a.id || "unknown"}`,
     "Sent from Abhyas · personal practice log"
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
 
 function setupSendButtons(a) {
@@ -271,13 +301,14 @@ function setupSendButtons(a) {
   function updateLinks() {
     const e = gatherEval();
     const body = formatEvalText(e, a);
-    const subject = `📋 Evaluation: ${(a.question || "").slice(0, 60)}...`;
+    // Subject line includes teacher name + question snippet so Saurav knows at a glance
+    const subject = `📋 ${e.by} evaluated: ${(a.question || "").slice(0, 50)}...`;
 
     emailBtn.href = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     whatsappBtn.href = `https://wa.me/?text=${encodeURIComponent(body)}`;
   }
 
-  ["evalBy","evalDate","evalScore","evalComments","evalStrengths","evalWeaknesses"].forEach(id => {
+  ["evalBy","evalDate","evalScore","evalComments","evalStrengths","evalWeaknesses","evalOther"].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener("input", updateLinks);
     el.addEventListener("change", updateLinks);
