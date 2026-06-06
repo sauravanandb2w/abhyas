@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#faf7ed" />
+<title>Evaluate Answer · Abhyas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #faf7ed; --bg-2: #f5f0e2; --card: #ffffff; --line: #ebe4d2;
+    --text: #1f1c14; --muted: #6e6760; --accent-2: #cc785c; --good: #6f8a5e; --saffron: #d97757;
+    --serif: "Source Serif 4", ui-serif, Georgia, serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: var(--sans); color: var(--text); min-height: 100vh; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .container { max-width: 680px; margin: 0 auto; padding: 28px 18px 60px; }
+  .header { text-align: center; margin-bottom: 24px; }
+  .header .brand { font-family: var(--serif); font-size: 24px; font-weight: 400; letter-spacing: -0.025em; }
+  .header .sub { font-size: 12px; color: var(--muted); margin-top: 4px; font-variant: small-caps; letter-spacing: 0.08em; }
+  .header .ask {
+    font-family: var(--serif); font-size: 16px; color: var(--text); margin-top: 14px;
+    background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--saffron);
+    padding: 14px 18px; border-radius: 12px; text-align: left; letter-spacing: -0.01em;
+  }
+  .meta {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+    font-size: 11px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600;
+  }
+  .meta span { background: var(--card); border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px; }
+  .meta span.source { background: var(--accent-2); color: #fdf6f0; border-color: var(--accent-2); }
+  .question {
+    background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent-2);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 22px;
+    font-family: var(--serif); font-size: 17px; line-height: 1.55; letter-spacing: -0.01em;
+  }
+  .question .label { font-family: var(--sans); font-size: 10px; color: var(--accent-2); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 600; margin-bottom: 10px; }
+
+  .sec-label { font-size: 11px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; margin: 22px 2px 12px; }
+  .photos { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+  .photo-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: zoom-in; }
+  .photo-wrap img { width: 100%; display: block; }
+
+  .form-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 14px; margin-bottom: 18px; }
+  .form-card h2 { font-family: var(--serif); font-size: 20px; font-weight: 400; letter-spacing: -0.025em; margin-bottom: 14px; }
+  .form-card label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 5px; font-weight: 500; }
+  .form-card input, .form-card textarea {
+    width: 100%; background: var(--bg-2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit;
+    transition: border-color 0.12s;
+  }
+  .form-card input:focus, .form-card textarea:focus { outline: 0; border-color: var(--accent-2); }
+  .form-card textarea { min-height: 120px; resize: vertical; line-height: 1.55; }
+  .form-card .row { display: flex; gap: 8px; }
+  .form-card .row > * { flex: 1; }
+
+  .send-actions { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 18px; }
+  .send-btn {
+    background: var(--text); color: var(--bg); border: 0; padding: 14px; border-radius: 10px;
+    font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--sans);
+    display: flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: -0.005em;
+    text-decoration: none;
+  }
+  .send-btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .send-btn:hover { opacity: 0.93; }
+
+  .hint { font-size: 12px; color: var(--muted); line-height: 1.55; margin-top: 16px; padding: 12px 14px;
+    background: var(--card); border-radius: 10px; border: 1px solid var(--line); }
+  .hint b { color: var(--text); }
+
+  .error { background: rgba(181,79,72,0.08); border: 1px solid rgba(181,79,72,0.3); color: #8a3d38;
+    padding: 14px 18px; border-radius: 12px; font-size: 14px; margin-bottom: 18px; }
+
+  .footer-credit { text-align: center; font-size: 11px; color: var(--muted); margin-top: 32px; font-style: italic; }
+
+  /* Lightbox */
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100;
+    display: none; align-items: center; justify-content: center; padding: 16px; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 100%; }
+  .lightbox .close { position: absolute; top: 16px; right: 16px; color: #fff; font-size: 22px;
+    cursor: pointer; background: rgba(0,0,0,0.5); width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; }
+
+  .success-screen { display: none; text-align: center; padding: 40px 20px; }
+  .success-screen.show { display: block; }
+  .success-screen .check { font-size: 56px; margin-bottom: 16px; }
+  .success-screen h2 { font-family: var(--serif); font-size: 24px; font-weight: 500; margin-bottom: 8px; letter-spacing: -0.02em; }
+  .success-screen p { color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 360px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div class="container" id="main">
+  <div class="header">
+    <div class="brand">Abhyas · अभ्यास</div>
+    <div class="sub">answer evaluation</div>
+    <div class="ask">Sir / Ma'am, please evaluate the answer below and submit. Your feedback goes directly to Saurav.</div>
+  </div>
+
+  <div id="errorBox" class="error" style="display:none;"></div>
+
+  <div id="attemptView">
+    <div class="meta" id="metaRow"></div>
+    <div class="question" id="questionBox"></div>
+
+    <div class="sec-label">Student's answer (handwritten)</div>
+    <div class="photos" id="photosBox"></div>
+
+    <div class="sec-label" id="notesLabel" style="display:none;">Student's self-notes</div>
+    <div id="notesBox" style="background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 14px; line-height: 1.55; color: var(--muted); margin-bottom: 18px; display: none;"></div>
+
+    <div class="form-card">
+      <h2>📋 Your evaluation</h2>
+
+      <div class="row">
+        <div><label>Your name</label><input id="evalBy" placeholder="Sir / Ma'am name"/></div>
+        <div><label>Date</label><input id="evalDate" type="date"/></div>
+      </div>
+
+      <label>Score awarded</label>
+      <input id="evalScore" placeholder="9 / 15"/>
+
+      <label>Detailed comments</label>
+      <textarea id="evalComments" placeholder="Strong analysis but introduction lacked context. Suggest adding 1-2 background sentences. Missed two dimensions of the topic. Diagram on page 2 was good — keep that style."></textarea>
+
+      <label>💚 Strengths (comma-separated)</label>
+      <input id="evalStrengths" placeholder="strong structure, good examples, clear handwriting"/>
+
+      <label>🩹 Areas to work on (comma-separated)</label>
+      <input id="evalWeaknesses" placeholder="weak intro, no diagram, missed dimension"/>
+
+      <div class="send-actions">
+        <a href="#" class="send-btn" id="emailBtn">📧 Send via Email</a>
+        <a href="#" class="send-btn ghost" id="whatsappBtn">💬 Send via WhatsApp</a>
+        <button class="send-btn ghost" onclick="copyEval()">📋 Copy to clipboard</button>
+      </div>
+
+      <div class="hint">
+        <b>Email</b> opens your default mail app (Gmail / Mail) with the evaluation pre-filled.<br>
+        <b>WhatsApp</b> opens chat — pick Saurav and send.<br>
+        <b>Copy</b> puts the evaluation on your clipboard — paste anywhere.
+      </div>
+    </div>
+  </div>
+
+  <div class="success-screen" id="successScreen">
+    <div class="check">✓</div>
+    <h2>Thank you</h2>
+    <p>Your evaluation has been sent. Saurav will see it and add it to his answer-writing log.</p>
+  </div>
+
+  <div class="footer-credit">Sent from Abhyas · personal practice log</div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <div class="close" onclick="closeLightbox()">×</div>
+  <img id="lightboxImg" alt="answer page"/>
+</div>
+
+<script>
+// Read attempt data from URL hash
+function readAttemptFromHash() {
+  try {
+    const hash = location.hash.replace(/^#a=/, "");
+    if (!hash) return null;
+    const json = decodeURIComponent(atob(hash));
+    return JSON.parse(json);
+  } catch (e) {
+    console.error("decode error", e);
+    return null;
+  }
+}
+
+const a = readAttemptFromHash();
+
+if (!a) {
+  document.getElementById("attemptView").style.display = "none";
+  const err = document.getElementById("errorBox");
+  err.style.display = "block";
+  err.innerHTML = "This evaluation link is invalid or expired. Please ask Saurav for a fresh link.";
+} else {
+  renderAttempt(a);
+  setupSendButtons(a);
+}
+
+function renderAttempt(a) {
+  const SOURCES = { pyq: "📘 PYQ", test: "📝 Test", teacher: "👨‍🏫 Teacher's Q", mock: "🎯 Mock", random: "🎲 Random" };
+  const PAPERS = { gs1: "GS Paper I", gs2: "GS Paper II", gs3: "GS Paper III", gs4: "GS Paper IV", essay: "Essay", math: "Math Optional" };
+
+  const meta = [];
+  meta.push(`<span class="source">${SOURCES[a.source] || "—"}</span>`);
+  meta.push(`<span>${PAPERS[a.paper] || a.paper}</span>`);
+  if (a.topic) meta.push(`<span>${escapeHtml(a.topic)}</span>`);
+  if (a.year) meta.push(`<span>${escapeHtml(a.year)}</span>`);
+  if (a.marks) meta.push(`<span>${escapeHtml(a.marks)} marks</span>`);
+  if (a.attemptDate) meta.push(`<span>📅 ${escapeHtml(a.attemptDate)}</span>`);
+  document.getElementById("metaRow").innerHTML = meta.join("");
+
+  document.getElementById("questionBox").innerHTML = `
+    <div class="label">Question</div>
+    ${escapeHtml(a.question || "(no question provided)")}`;
+
+  const photosEl = document.getElementById("photosBox");
+  if (a.images && a.images.length) {
+    photosEl.innerHTML = a.images.map(url =>
+      `<div class="photo-wrap" onclick="openLightbox('${escapeAttr(url)}')"><img loading="lazy" src="${escapeAttr(url)}"/></div>`
+    ).join("");
+  } else {
+    photosEl.innerHTML = `<div class="hint" style="margin-top: 0;">No photos in this link. Saurav may have shared the photos separately via WhatsApp.</div>`;
+  }
+
+  if (a.notes && a.notes.trim()) {
+    document.getElementById("notesLabel").style.display = "block";
+    const nb = document.getElementById("notesBox");
+    nb.style.display = "block";
+    nb.textContent = a.notes;
+  }
+
+  // pre-fill date with today
+  document.getElementById("evalDate").value = new Date().toISOString().slice(0,10);
+}
+
+function gatherEval() {
+  return {
+    by: document.getElementById("evalBy").value.trim() || "Anonymous",
+    date: document.getElementById("evalDate").value,
+    score: document.getElementById("evalScore").value.trim(),
+    comments: document.getElementById("evalComments").value.trim(),
+    strengths: document.getElementById("evalStrengths").value.trim(),
+    weaknesses: document.getElementById("evalWeaknesses").value.trim()
+  };
+}
+
+function formatEvalText(e, a) {
+  const SOURCES = { pyq: "PYQ", test: "Test Series", teacher: "Teacher's Q", mock: "Mock", random: "Random" };
+  const PAPERS = { gs1: "GS Paper I", gs2: "GS Paper II", gs3: "GS Paper III", gs4: "GS Paper IV", essay: "Essay", math: "Math Optional" };
+  return [
+    "═══════════════════════════",
+    "📋 Abhyas Answer Evaluation",
+    "═══════════════════════════",
+    "",
+    `Question (${SOURCES[a.source]||a.source} · ${PAPERS[a.paper]||a.paper} · ${a.year||""} · ${a.marks||""}M):`,
+    a.question || "",
+    "",
+    `Evaluated by: ${e.by}`,
+    `Date: ${e.date}`,
+    `Score: ${e.score || "(not given)"}`,
+    "",
+    "Comments:",
+    e.comments || "(no comments)",
+    "",
+    `💚 Strengths: ${e.strengths || "(none listed)"}`,
+    `🩹 Areas to improve: ${e.weaknesses || "(none listed)"}`,
+    "",
+    "═══════════════════════════",
+    `Attempt ID: ${a.id || "unknown"}`,
+    "Sent from Abhyas · personal practice log"
+  ].join("\n");
+}
+
+function setupSendButtons(a) {
+  const emailBtn = document.getElementById("emailBtn");
+  const whatsappBtn = document.getElementById("whatsappBtn");
+  const recipientEmail = a.userEmail || "anandsaurav100@gmail.com";
+
+  function updateLinks() {
+    const e = gatherEval();
+    const body = formatEvalText(e, a);
+    const subject = `📋 Evaluation: ${(a.question || "").slice(0, 60)}...`;
+
+    emailBtn.href = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    whatsappBtn.href = `https://wa.me/?text=${encodeURIComponent(body)}`;
+  }
+
+  ["evalBy","evalDate","evalScore","evalComments","evalStrengths","evalWeaknesses"].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", updateLinks);
+    el.addEventListener("change", updateLinks);
+  });
+
+  emailBtn.addEventListener("click", () => {
+    updateLinks();
+    setTimeout(showSuccess, 500);
+  });
+  whatsappBtn.addEventListener("click", () => {
+    updateLinks();
+    setTimeout(showSuccess, 500);
+  });
+
+  updateLinks();
+}
+
+function copyEval() {
+  const a = readAttemptFromHash();
+  const e = gatherEval();
+  const text = formatEvalText(e, a);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Copied to clipboard. Paste in WhatsApp / email / anywhere to send to Saurav.");
+      setTimeout(showSuccess, 300);
+    }).catch(() => {
+      // fallback
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+      alert("Copied. Paste anywhere to send.");
+    });
+  }
+}
+
+function showSuccess() {
+  document.getElementById("attemptView").style.display = "none";
+  document.querySelector(".header").style.display = "none";
+  document.getElementById("successScreen").classList.add("show");
+}
+
+function openLightbox(url) {
+  document.getElementById("lightboxImg").src = url;
+  document.getElementById("lightbox").classList.add("open");
+}
+function closeLightbox() {
+  document.getElementById("lightbox").classList.remove("open");
+  document.getElementById("lightboxImg").src = "";
+}
+
+function escapeHtml(s) { return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function escapeAttr(s) { return escapeHtml(s); }
+</script>
+</body>
+</html>
