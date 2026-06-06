@@ -714,36 +714,33 @@ async function shareForEval() {
   const a = state.answers.find(x => x.id === viewingAnswerId);
   if (!a) return;
 
-  // Ask which teacher
+  // Teacher name prompt
   const lastTeacher = localStorage.getItem("abhyas-last-teacher") || "";
   const teacherName = prompt(
-    "Send to which teacher? (e.g. \"Neeraj sir - Polity\")\n\nThis will pre-fill in the evaluation form so they don't type their own name.",
+    "Send to which teacher? (e.g. \"Neeraj sir - Polity\")\n\nThis pre-fills in the evaluation form so they don't type their own name.",
     lastTeacher
   );
   if (teacherName === null) return; // cancelled
   const teacher = (teacherName || "").trim();
   if (teacher) localStorage.setItem("abhyas-last-teacher", teacher);
 
-  // Ask user if they want photos in the link or sent separately
-  const photoCount = (a.images || []).length;
-  let includePhotos = true;
-  if (photoCount > 2) {
-    includePhotos = confirm(
-      `This attempt has ${photoCount} photos. Include them in the share link?\n\n` +
-      `OK: Photos embedded in link (link will be ~${photoCount * 30}KB — works in most apps, may be too long for some).\n\n` +
-      `Cancel: Photos NOT in link (link stays small, ~2KB). You'll need to send photos separately via WhatsApp.`
-    );
-  }
-
   toast("Preparing share link...");
-  const compressedImages = [];
-  if (includePhotos) {
-    // Aggressive compression so URL fits everywhere
-    for (const img of (a.images || []).slice(0, 3)) { // cap at 3 photos
+
+  // Process images: URLs stay as URLs (eval.html loads them from network),
+  // base64 photos get compressed for the link.
+  const imagesForShare = [];
+  for (const img of (a.images || []).slice(0, 4)) {
+    if (typeof img === "string" && img.startsWith("http")) {
+      // GitHub URL — small, just include as-is
+      imagesForShare.push(img);
+    } else if (typeof img === "string" && img.startsWith("data:")) {
+      // base64 — compress and embed
       try {
         const small = await compressForShare(img, 700, 0.45);
-        compressedImages.push(small);
-      } catch (e) { console.warn("compress for share", e); }
+        imagesForShare.push(small);
+      } catch (e) {
+        console.warn("compress failed", e);
+      }
     }
   }
 
@@ -757,36 +754,25 @@ async function shareForEval() {
     year: a.year,
     attemptDate: a.attemptDate,
     notes: a.notes,
-    images: compressedImages,
-    teacherName: teacher,  // pre-fill in eval form
+    images: imagesForShare,
+    teacherName: teacher,
     userEmail: "anandsaurav100@gmail.com"
   };
 
   const json = JSON.stringify(sharePayload);
   const encoded = urlSafeEncode(json);
   const baseUrl = location.href.replace(/index\.html.*$/, "").replace(/\?.*$/, "").replace(/#.*$/, "");
-  // Use ?a= (query) — more robust than #a= across messengers
   const evalUrl = baseUrl + "eval.html?a=" + encoded;
-
   const sizeKB = Math.round(evalUrl.length / 1024);
 
   const greeting = teacher ? teacher + "," : "Sir / Ma'am,";
-  let teacherMessage;
-  if (includePhotos) {
-    teacherMessage =
-      greeting + "\n\n" +
-      "Please evaluate my answer at the link below. The page has the question, my handwritten attempt photos, and a quick feedback form (all fields optional).\n\n" +
-      evalUrl + "\n\n" +
-      "Thank you,\nSaurav";
-  } else {
-    teacherMessage =
-      greeting + "\n\n" +
-      "Please evaluate my answer. The link below has the question and a quick feedback form (all fields optional).\n\n" +
-      evalUrl + "\n\n" +
-      "I'll send the photos of my handwritten answer separately in the next message.\n\n" +
-      "Thank you,\nSaurav";
-  }
+  const teacherMessage =
+    greeting + "\n\n" +
+    "Please evaluate my answer at the link below. It has the question, my handwritten attempt, and a quick feedback form (all fields optional).\n\n" +
+    evalUrl + "\n\n" +
+    "Thank you,\nSaurav";
 
+  // Try native share sheet first (mobile)
   if (navigator.share) {
     try {
       await navigator.share({
@@ -796,20 +782,29 @@ async function shareForEval() {
       toast("✓ Shared (" + sizeKB + " KB link)");
       return;
     } catch (e) {
-      if (e.name !== "AbortError") console.warn("share api", e);
+      if (e.name === "AbortError") return; // user cancelled, don't fall through
+      console.warn("share api error", e);
     }
   }
 
-  if (navigator.clipboard) {
-    await navigator.clipboard.writeText(teacherMessage);
+  // Fallback 1: copy to clipboard
+  let copied = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(teacherMessage);
+      copied = true;
+    }
+  } catch (e) {
+    console.warn("clipboard failed", e);
+  }
+
+  if (copied) {
     alert(
-      "✓ Message copied to clipboard (" + sizeKB + " KB link).\n\n" +
-      "Paste in WhatsApp / email to send to your teacher.\n\n" +
-      (includePhotos
-        ? "Photos are embedded in the link."
-        : "Remember to send photos in a separate message.")
+      "✓ Message + link copied to clipboard (" + sizeKB + " KB).\n\n" +
+      "Paste in WhatsApp / email to send to teacher."
     );
   } else {
+    // Fallback 2: show link in a prompt the user can copy manually
     prompt("Copy this link and send to your teacher:", evalUrl);
   }
 }
@@ -817,15 +812,24 @@ async function shareForEval() {
 function compressForShare(dataUrl, maxW = 700, q = 0.45) {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // CORS for cross-origin (in case base64 ends up coming from http URL someday)
+    img.crossOrigin = "anonymous";
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      let w = img.width, h = img.height;
-      if (w > maxW) { h = h * maxW / w; w = maxW; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", q));
+      try {
+        const canvas = document.createElement("canvas");
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = h * maxW / w; w = maxW; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", q));
+      } catch (e) {
+        // Never let the promise hang — always resolve or reject
+        reject(e);
+      }
     };
-    img.onerror = reject;
+    img.onerror = (e) => reject(new Error("Image failed to load"));
+    // Safety timeout — never hang more than 10 sec
+    setTimeout(() => reject(new Error("compress timeout")), 10000);
     img.src = dataUrl;
   });
 }
