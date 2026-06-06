@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Adarsh · Toppers' Mains Copies · Design Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #faf7ed; --bg-2: #f5f0e2; --card: #ffffff; --card-2: #fbf7eb;
+    --line: #ebe4d2; --line-soft: #f0e9d8;
+    --text: #1f1c14; --muted: #6e6760; --muted-2: #9a9389;
+    --accent: #b86848; --accent-2: #cc785c;
+    --good: #6f8a5e; --saffron: #d97757;
+    --gs1: #c97d5a; --gs2: #7d8f6f; --gs3: #6b8194; --gs4: #a87b95;
+    --essay: #8a8265; --opt: #b89149;
+    --serif: "Source Serif 4", ui-serif, Georgia, serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #2a2620; font-family: var(--sans); color: var(--text); min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px 80px; -webkit-font-smoothing: antialiased;
+  }
+  .frame-label {
+    font-family: var(--serif); font-size: 14px; color: #d4cebd;
+    margin: 14px 0 22px; font-style: italic; letter-spacing: -0.005em;
+  }
+  .frames-row {
+    display: flex; gap: 28px; flex-wrap: wrap; justify-content: center;
+  }
+  .phone {
+    width: 360px; background: var(--bg); border-radius: 36px; overflow: hidden;
+    box-shadow: 0 0 0 8px #1a1715, 0 0 0 9px #0a0908, 0 30px 60px rgba(0,0,0,0.5);
+    position: relative;
+  }
+  .status-bar {
+    height: 40px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; font-size: 13px; font-weight: 600; color: var(--text); position: relative;
+  }
+  .status-bar::before {
+    content: ""; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 100px; height: 24px; background: #000; border-radius: 18px;
+  }
+  .status-bar .right { display: flex; gap: 6px; font-size: 12px; }
+  .app-body { padding: 14px 18px 80px; min-height: 720px; }
+
+  /* Shared header */
+  .app-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .brand-name {
+    font-family: var(--serif); font-size: 26px; font-weight: 400;
+    letter-spacing: -0.03em; line-height: 1;
+  }
+  .brand-sub {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+    font-variant: small-caps; letter-spacing: 0.08em;
+  }
+  .icon-row { display: flex; gap: 5px; }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 9px; background: var(--card);
+    border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--muted);
+  }
+
+  /* Search */
+  .search {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 11px 16px; margin: 18px 0 20px; display: flex; align-items: center; gap: 10px;
+    color: var(--muted); font-size: 14px;
+  }
+  .search .ico { font-size: 16px; }
+
+  /* Paper cards grid */
+  .papers-label {
+    font-family: var(--serif); font-size: 17px; font-weight: 500;
+    letter-spacing: -0.015em; margin-bottom: 14px;
+  }
+  .papers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .paper-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 14px; cursor: pointer; position: relative;
+  }
+  .paper-card .stripe { width: 30px; height: 3px; border-radius: 2px; margin-bottom: 10px; }
+  .paper-card .pname {
+    font-family: var(--serif); font-size: 17px; font-weight: 500;
+    letter-spacing: -0.015em; line-height: 1.15; margin-bottom: 4px;
+  }
+  .paper-card .pdesc {
+    font-size: 11px; color: var(--muted); margin-bottom: 14px; line-height: 1.4;
+  }
+  .paper-card .pstats {
+    display: flex; gap: 10px; font-size: 10.5px; color: var(--muted-2);
+    letter-spacing: 0.02em;
+  }
+  .paper-card .pstats b {
+    color: var(--text); font-family: var(--serif); font-size: 14px; font-weight: 500;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.015em;
+  }
+
+  /* Recent strip */
+  .sec-label {
+    font-size: 11px; color: var(--muted); letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 600; margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .sec-label .more { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--accent-2); font-weight: 500; }
+  .recent-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; display: flex; gap: 12px; align-items: center;
+    margin-bottom: 8px;
+  }
+  .recent-thumb {
+    width: 50px; height: 50px; background: var(--card-2); border-radius: 8px;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-size: 13px; color: var(--muted); position: relative;
+    overflow: hidden;
+  }
+  .recent-thumb::after {
+    content: ""; position: absolute; inset: 6px; border: 1px dashed var(--line);
+    border-radius: 4px; opacity: 0.7;
+  }
+  .recent-meta { flex: 1; }
+  .recent-q { font-size: 13px; font-weight: 500; letter-spacing: -0.005em; line-height: 1.35; margin-bottom: 4px; }
+  .recent-info { font-size: 11px; color: var(--muted); letter-spacing: 0.01em; }
+  .recent-info b { color: var(--saffron); font-weight: 600; }
+
+  /* Subtopic list (screen 2) */
+  .back-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .back-row .back { font-size: 18px; color: var(--muted); cursor: pointer; }
+  .back-row .crumb { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .page-title {
+    font-family: var(--serif); font-size: 28px; font-weight: 400;
+    letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 4px;
+  }
+  .page-sub {
+    font-size: 13px; color: var(--muted); margin-bottom: 18px; line-height: 1.5;
+  }
+  .topic-strip {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 8px; cursor: pointer;
+  }
+  .topic-name {
+    font-family: var(--serif); font-size: 16px; font-weight: 500;
+    letter-spacing: -0.015em; margin-bottom: 6px;
+  }
+  .topic-stats {
+    display: flex; gap: 12px; font-size: 11px; color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+  .topic-stats span b {
+    color: var(--text); font-family: var(--serif); font-size: 13px;
+    font-weight: 500; font-variant-numeric: tabular-nums;
+  }
+  .topic-strip.active {
+    background: var(--card-2); border-color: var(--accent-2);
+  }
+  .topic-strip.active .topic-name { color: var(--accent); }
+
+  .questions-list { margin-left: 14px; padding-left: 14px; border-left: 2px solid var(--accent-2);
+    margin-top: 4px; margin-bottom: 14px;
+  }
+  .question-row {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 6px;
+  }
+  .question-text {
+    font-size: 13px; color: var(--text); line-height: 1.5;
+    margin-bottom: 8px; letter-spacing: -0.005em;
+  }
+  .question-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .topper-stack { display: flex; gap: -4px; }
+  .topper-pill {
+    background: var(--saffron); color: #fdf6f0; padding: 2px 8px;
+    border-radius: 999px; font-size: 10px; font-weight: 600;
+    letter-spacing: 0.02em; margin-right: 4px;
+  }
+  .topper-pill.alt { background: var(--accent-2); }
+  .topper-pill.alt2 { background: var(--good); }
+
+  /* Answer detail (screen 3) */
+  .answer-meta-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 14px;
+  }
+  .topper-line {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .topper-name {
+    font-family: var(--serif); font-size: 18px; font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .topper-rank {
+    font-family: var(--serif); font-size: 14px; color: var(--saffron);
+    font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .topper-year {
+    font-size: 11px; color: var(--muted); letter-spacing: 0.04em;
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .topper-stats {
+    display: flex; gap: 1px; background: var(--line); border: 1px solid var(--line);
+    border-radius: 8px; overflow: hidden;
+  }
+  .topper-stats .ts {
+    flex: 1; background: var(--card); padding: 8px 10px;
+  }
+  .topper-stats .v {
+    font-family: var(--serif); font-size: 15px; font-weight: 500;
+    letter-spacing: -0.015em; font-variant-numeric: tabular-nums;
+  }
+  .topper-stats .l {
+    font-size: 10px; color: var(--muted); margin-top: 2px;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .question-card {
+    background: var(--card); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-2); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 14px;
+    font-size: 14px; line-height: 1.55; letter-spacing: -0.005em;
+  }
+  .question-card .label {
+    font-size: 10px; color: var(--accent-2); letter-spacing: 0.15em;
+    text-transform: uppercase; font-weight: 600; margin-bottom: 8px;
+  }
+  .answer-image {
+    background: linear-gradient(180deg, #f5efe0 0%, #ebe4d2 100%);
+    border: 1px solid var(--line); border-radius: 12px;
+    aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; margin-bottom: 14px;
+  }
+  .answer-image::before {
+    content: ""; position: absolute; inset: 16px;
+    background-image:
+      linear-gradient(transparent 0, transparent 22px, var(--line-soft) 22px, var(--line-soft) 24px),
+      linear-gradient(transparent 0, transparent 22px, var(--line-soft) 22px, var(--line-soft) 24px);
+    background-size: 100% 24px;
+    background-repeat: repeat-y;
+    opacity: 0.7;
+  }
+  .answer-image::after {
+    content: "Handwritten answer\Athumbnail"; position: relative;
+    color: var(--muted); font-style: italic; font-size: 13px;
+    font-family: var(--serif); white-space: pre-line; text-align: center;
+  }
+  .answer-actions {
+    display: flex; gap: 8px; margin-bottom: 14px;
+  }
+  .ans-btn {
+    flex: 1; background: var(--text); color: var(--bg); border: 0;
+    padding: 11px; border-radius: 10px; font-size: 13px; font-weight: 500;
+    font-family: var(--sans); letter-spacing: -0.005em;
+  }
+  .ans-btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .next-strip {
+    display: flex; justify-content: space-between; padding: 12px 16px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    font-size: 13px; color: var(--muted);
+  }
+  .next-strip b { color: var(--text); font-weight: 500; }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(250, 247, 237, 0.94);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--line);
+    padding: 10px 14px 22px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+  }
+  .nav-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: transparent; border: 0; padding: 6px 4px;
+    color: var(--muted-2); font-size: 10px; font-weight: 500;
+    font-family: var(--sans); letter-spacing: 0.02em;
+  }
+  .nav-btn .nav-icon { font-size: 16px; }
+  .nav-btn.active { color: var(--accent); }
+
+  /* Annotations */
+  .annotations {
+    max-width: 800px; width: 100%; margin-top: 50px;
+    background: rgba(250,247,237,0.95); border: 1px solid var(--line);
+    border-radius: 16px; padding: 28px 32px; color: var(--text);
+  }
+  .annotations h2 {
+    font-family: var(--serif); font-size: 22px; font-weight: 500;
+    letter-spacing: -0.025em; margin-bottom: 16px;
+  }
+  .annotations h3 {
+    font-family: var(--serif); font-size: 14px; font-weight: 500;
+    color: var(--accent); margin-top: 16px; margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+  .annotations p {
+    font-size: 13px; color: var(--muted); line-height: 1.6;
+    margin-bottom: 8px;
+  }
+  .annotations .swatches { display: flex; gap: 8px; margin: 10px 0 12px; flex-wrap: wrap; }
+  .sw { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .sw .chip { width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<div class="frame-label">Adarsh · आदर्श · ideal mains answers from UPSC toppers</div>
+
+<div class="frames-row">
+
+  <!-- ============ SCREEN 1: HOME / BROWSE ============ -->
+  <div class="phone">
+    <div class="status-bar"><span>9:14</span><span class="right">● 5G ●●●●● 91%</span></div>
+    <div class="app-body">
+      <div class="app-header">
+        <div>
+          <div class="brand-name">Adarsh</div>
+          <div class="brand-sub">आदर्श · model copies</div>
+        </div>
+        <div class="icon-row">
+          <div class="icon-btn">★</div>
+          <div class="icon-btn">⋮</div>
+        </div>
+      </div>
+
+      <div class="search"><span class="ico">⌕</span><span>Search topic, topper, year...</span></div>
+
+      <div class="papers-label">Browse by paper</div>
+      <div class="papers-grid">
+        <div class="paper-card"><div class="stripe" style="background: var(--gs1)"></div>
+          <div class="pname">GS Paper I</div>
+          <div class="pdesc">History · Geography · Society · Culture</div>
+          <div class="pstats"><span><b>87</b> answers</span><span><b>12</b> toppers</span></div>
+        </div>
+        <div class="paper-card"><div class="stripe" style="background: var(--gs2)"></div>
+          <div class="pname">GS Paper II</div>
+          <div class="pdesc">Polity · Governance · IR · Welfare</div>
+          <div class="pstats"><span><b>74</b> answers</span><span><b>11</b> toppers</span></div>
+        </div>
+        <div class="paper-card"><div class="stripe" style="background: var(--gs3)"></div>
+          <div class="pname">GS Paper III</div>
+          <div class="pdesc">Economy · S&amp;T · Env · Security</div>
+          <div class="pstats"><span><b>92</b> answers</span><span><b>13</b> toppers</span></div>
+        </div>
+        <div class="paper-card"><div class="stripe" style="background: var(--gs4)"></div>
+          <div class="pname">GS Paper IV</div>
+          <div class="pdesc">Ethics · Integrity · Case studies</div>
+          <div class="pstats"><span><b>68</b> answers</span><span><b>10</b> toppers</span></div>
+        </div>
+        <div class="paper-card"><div class="stripe" style="background: var(--essay)"></div>
+          <div class="pname">Essay</div>
+          <div class="pdesc">Philosophical · Social · Topical</div>
+          <div class="pstats"><span><b>34</b> essays</span><span><b>14</b> toppers</span></div>
+        </div>
+        <div class="paper-card"><div class="stripe" style="background: var(--opt)"></div>
+          <div class="pname">Math Optional</div>
+          <div class="pdesc">Paper I &amp; II · LA · Calc · ODE · Mech · etc.</div>
+          <div class="pstats"><span><b>42</b> answers</span><span><b>6</b> toppers</span></div>
+        </div>
+      </div>
+
+      <div class="sec-label"><span>Recently opened</span><span class="more">See all →</span></div>
+      <div class="recent-card">
+        <div class="recent-thumb">SK</div>
+        <div class="recent-meta">
+          <div class="recent-q">Critically examine the issue of "freebies" in Indian electoral politics.</div>
+          <div class="recent-info"><b>Shruti Sharma</b> · AIR 1 · 2022 · GS2 · Polity</div>
+        </div>
+      </div>
+      <div class="recent-card">
+        <div class="recent-thumb">GS</div>
+        <div class="recent-meta">
+          <div class="recent-q">Discuss the impact of AI on the Indian job market.</div>
+          <div class="recent-info"><b>Garima Sikarwar</b> · AIR 38 · 2023 · GS3 · Tech</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-btn active"><span class="nav-icon">⌕</span><span>Browse</span></button>
+      <button class="nav-btn"><span class="nav-icon">★</span><span>Saved</span></button>
+      <button class="nav-btn"><span class="nav-icon">↻</span><span>Recent</span></button>
+      <button class="nav-btn"><span class="nav-icon">◐</span><span>Toppers</span></button>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN 2: SUB-TOPIC VIEW ============ -->
+  <div class="phone">
+    <div class="status-bar"><span>9:15</span><span class="right">● 5G ●●●●● 91%</span></div>
+    <div class="app-body">
+      <div class="back-row">
+        <span class="back">←</span>
+        <span class="crumb">Adarsh · GS Paper II</span>
+      </div>
+      <div class="page-title">GS Paper II</div>
+      <div class="page-sub">74 topper answers across 14 sub-topics · 11 toppers</div>
+
+      <div class="topic-strip"><div class="topic-name">Constitution &amp; Federalism</div>
+        <div class="topic-stats"><span><b>9</b> answers</span><span><b>5</b> toppers</span></div></div>
+
+      <div class="topic-strip active"><div class="topic-name">Pressure Groups &amp; RPA</div>
+        <div class="topic-stats"><span><b>6</b> answers</span><span><b>4</b> toppers</span></div></div>
+      <div class="questions-list">
+        <div class="question-row">
+          <div class="question-text">"Freebies offered to voters undermine the principles of free and fair elections." Critically examine.</div>
+          <div class="question-meta">
+            <div><span class="topper-pill">SK · 1</span><span class="topper-pill alt">UM · 4</span></div>
+            <div>2022 · 15M</div>
+          </div>
+        </div>
+        <div class="question-row">
+          <div class="question-text">Discuss the criminalisation of politics. What are the recent Supreme Court interventions?</div>
+          <div class="question-meta">
+            <div><span class="topper-pill alt2">AS · 7</span><span class="topper-pill">SK · 1</span></div>
+            <div>2021 · 10M</div>
+          </div>
+        </div>
+        <div class="question-row">
+          <div class="question-text">Should there be a uniform code of conduct for political parties? Examine.</div>
+          <div class="question-meta">
+            <div><span class="topper-pill alt">UM · 4</span></div>
+            <div>2023 · 15M</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="topic-strip"><div class="topic-name">Welfare Schemes &amp; Vulnerable Sections</div>
+        <div class="topic-stats"><span><b>8</b> answers</span><span><b>6</b> toppers</span></div></div>
+      <div class="topic-strip"><div class="topic-name">International Relations · Neighbours</div>
+        <div class="topic-stats"><span><b>11</b> answers</span><span><b>7</b> toppers</span></div></div>
+      <div class="topic-strip"><div class="topic-name">Statutory &amp; Constitutional Bodies</div>
+        <div class="topic-stats"><span><b>5</b> answers</span><span><b>3</b> toppers</span></div></div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-btn active"><span class="nav-icon">⌕</span><span>Browse</span></button>
+      <button class="nav-btn"><span class="nav-icon">★</span><span>Saved</span></button>
+      <button class="nav-btn"><span class="nav-icon">↻</span><span>Recent</span></button>
+      <button class="nav-btn"><span class="nav-icon">◐</span><span>Toppers</span></button>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN 3: ANSWER DETAIL ============ -->
+  <div class="phone">
+    <div class="status-bar"><span>9:17</span><span class="right">● 5G ●●●●● 91%</span></div>
+    <div class="app-body">
+      <div class="back-row">
+        <span class="back">←</span>
+        <span class="crumb">GS2 · Pressure Groups &amp; RPA</span>
+      </div>
+
+      <div class="question-card">
+        <div class="label">Question · 15 marks · 2022</div>
+        "Freebies offered to voters undermine the principles of free and fair elections." Critically examine.
+      </div>
+
+      <div class="answer-meta-card">
+        <div class="topper-line">
+          <div class="topper-name">Shruti Sharma</div>
+          <div class="topper-rank">AIR 1</div>
+        </div>
+        <div class="topper-year">CSE 2021 · St. Stephen's · History optional</div>
+        <div class="topper-stats">
+          <div class="ts"><div class="v">13/15</div><div class="l">Got</div></div>
+          <div class="ts"><div class="v">2</div><div class="l">Pages</div></div>
+          <div class="ts"><div class="v">8m</div><div class="l">Time</div></div>
+        </div>
+      </div>
+
+      <div class="answer-image"></div>
+
+      <div class="answer-actions">
+        <button class="ans-btn">Tap to zoom →</button>
+        <button class="ans-btn ghost">★ Save</button>
+      </div>
+
+      <div class="next-strip">
+        <span>← Prev: <b>AS · 7</b></span>
+        <span>Next: <b>UM · 4</b> →</span>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-btn"><span class="nav-icon">⌕</span><span>Browse</span></button>
+      <button class="nav-btn"><span class="nav-icon">★</span><span>Saved</span></button>
+      <button class="nav-btn"><span class="nav-icon">↻</span><span>Recent</span></button>
+      <button class="nav-btn"><span class="nav-icon">◐</span><span>Toppers</span></button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Annotations / rationale -->
+<div class="annotations">
+  <h2>Adarsh — design rationale</h2>
+
+  <h3>Name</h3>
+  <p><b>Adarsh (आदर्श)</b> = "ideal" / "model" in Sanskrit and Hindi. The app is a vault of <i>model answers</i> from toppers. The word also carries the meaning "exemplar" — what you aspire to. Looks great in Source Serif 4, easy to say, distinctive.</p>
+
+  <h3>Tokens (Anthropic light + paper-mode shifts)</h3>
+  <div class="swatches">
+    <span class="sw"><span class="chip" style="background:#faf7ed"></span>#faf7ed bg</span>
+    <span class="sw"><span class="chip" style="background:#ffffff"></span>#ffffff card</span>
+    <span class="sw"><span class="chip" style="background:#cc785c"></span>#cc785c accent</span>
+    <span class="sw"><span class="chip" style="background:#d97757"></span>#d97757 saffron</span>
+  </div>
+  <p>Paper stripe colors (the thin bar at top of each paper card): <b>GS1 #c97d5a</b> · <b>GS2 #7d8f6f</b> · <b>GS3 #6b8194</b> · <b>GS4 #a87b95</b> · <b>Essay #8a8265</b> · <b>Optional #b89149</b>. Six muted, distinguishable shades to visually identify papers without relying on text alone.</p>
+
+  <h3>Three-screen flow</h3>
+  <p>1. <b>Home / Browse</b> — six paper cards in 2×3, recent answers strip, search at top. Single entry point.<br>
+  2. <b>Paper detail</b> — sub-topics as collapsible rows. Click a sub-topic → expands with individual questions. Each question shows which toppers answered it (color pills).<br>
+  3. <b>Answer detail</b> — question card on top, topper card with rank/marks/year/college, big scanned answer image (zoomable), prev/next navigation between answers for same question.</p>
+
+  <h3>Bottom nav · 4 destinations</h3>
+  <p><b>Browse</b> (default home) · <b>Saved</b> (your starred answers) · <b>Recent</b> (last 20 viewed) · <b>Toppers</b> (browse by topper instead of paper — e.g., "all answers by Shruti Sharma AIR 1 2021").</p>
+
+  <h3>Information architecture</h3>
+  <p>Each answer has metadata: <i>topper name, AIR (rank), CSE year, college/background, optional subject, marks awarded, time taken, page count, question text, paper, sub-topic, tags</i>. This metadata is what makes the app powerful — search/filter on any field.</p>
+
+  <h3>What makes this different from PDFs floating around the internet</h3>
+  <p>• Structured by topic, not by topper — you find the right answer for what you're studying NOW.<br>
+  • Multiple toppers per question — compare approaches.<br>
+  • Searchable across question text + topper name + year.<br>
+  • Bookmarks + recent — your personal study trail.<br>
+  • Side-by-side with Bholwa / CA / PYQ — one ecosystem under your Google login.</p>
+
+  <h3>Data sources (provided by you)</h3>
+  <p>You said you'll provide topper copy data. The app expects: a folder of scanned PNG/JPEG images + a JSON metadata file with the structure above. We can also support: PDF per answer (split into images at upload), bulk upload via dashboard, or paste-from-URL.</p>
+
+  <h3>Tech stack (proposed — matches your other apps)</h3>
+  <p>Single-file HTML/JS · Supabase for metadata + bookmarks · GitHub for images (free, your existing OAuth flow already authorizes uploads) · Netlify auto-deploy from git. All login via the same Gmail you already use.</p>
+
+  <h3>Build estimate (after your approval)</h3>
+  <p>~4–6 hours of focused work for v1. Includes: data structure design, three screens, image viewer with zoom, search, bookmarks, Supabase schema, bulk upload helper. Sync with your existing ecosystem.</p>
+
+  <h3>Next step</h3>
+  <p>Tell me: does the name, three-screen flow, and feel land? Any changes before I build? And — when you're ready — share the data source format you have.</p>
+</div>
+
+</body>
+</html>
