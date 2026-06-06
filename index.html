@@ -362,21 +362,31 @@
     <h2 id="syncTitle">☁ Cloud sync</h2>
     <div id="syncSignedOutView">
       <p style="font-size: 13px; color: var(--muted); line-height: 1.55; margin-bottom: 14px;">
-        Sign in to sync your attempts and evaluations across devices. Same email/password as your CA app. Photos upload to GitHub (your <code>abhyas</code> repo).
+        Sign in to sync attempts and evaluations across devices. Same email/password as your CA app.
       </p>
       <label>Email</label>
-      <input id="syncEmail" type="email" placeholder="you@gmail.com"/>
+      <input id="syncEmail" type="email" placeholder="you@gmail.com" autocomplete="email"/>
       <label>Password</label>
-      <input id="syncPassword" type="password" placeholder="your password"/>
-      <label>GitHub Personal Access Token (one-time)</label>
-      <input id="syncPAT" type="password" placeholder="github_pat_..."/>
-      <p style="font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5;">
-        Create at <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color: var(--accent-2);">github.com/settings/tokens</a> · Fine-grained · Repository access: only <code>sauravanandb2w/abhyas</code> · Permissions: <b>Contents: Read and write</b>
-      </p>
+      <input id="syncPassword" type="password" placeholder="your password" autocomplete="current-password"/>
+
+      <!-- PAT — shown only first time on this device -->
+      <div id="patNewBlock">
+        <label>GitHub Personal Access Token <span style="color: var(--muted-2); font-weight: 400;">· first-time setup on this device</span></label>
+        <input id="syncPAT" type="password" placeholder="github_pat_..." autocomplete="off"/>
+        <p style="font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5;">
+          Photos upload to your <code>abhyas</code> repo via this token. Create at <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color: var(--accent-2);">github.com/settings/tokens</a> · Fine-grained · Repo: <code>sauravanandb2w/abhyas</code> · Permission: <b>Contents Read &amp; Write</b>
+        </p>
+      </div>
+
+      <!-- PAT — shown when already saved on this device -->
+      <div id="patSavedBlock" style="display: none; margin-top: 12px; padding: 10px 12px; background: rgba(111,138,94,0.08); border: 1px solid var(--good); border-radius: 8px; font-size: 12.5px; color: var(--good);">
+        ✓ GitHub PAT saved on this device · <a href="#" onclick="event.preventDefault(); replacePAT()" style="color: var(--accent-2); text-decoration: underline;">replace</a>
+      </div>
+
       <div class="sync-status" id="syncStatus" style="margin-top: 10px;"></div>
       <div class="footer">
         <button class="cancel" onclick="closeSyncModal()">Cancel</button>
-        <button class="save" onclick="doSignIn()">Sign in & sync</button>
+        <button class="save" onclick="doSignIn()">Sign in &amp; sync</button>
       </div>
     </div>
     <div id="syncSignedInView" style="display:none;">
@@ -1018,18 +1028,42 @@ function openSyncModal() {
   document.getElementById("syncSignedOutView").style.display = s ? "none" : "block";
   document.getElementById("syncSignedInView").style.display = s ? "block" : "none";
   if (s) document.getElementById("syncEmailDisplay").textContent = s.email || "";
-  document.getElementById("syncPAT").value = loadPAT();
+
+  // Show PAT input only if not yet saved on this device
+  const hasPAT = !!loadPAT();
+  document.getElementById("patNewBlock").style.display = hasPAT ? "none" : "block";
+  document.getElementById("patSavedBlock").style.display = hasPAT ? "block" : "none";
+  document.getElementById("syncPAT").value = ""; // never pre-fill (security)
+
+  // Pre-fill email if previously signed in
+  const lastEmail = localStorage.getItem("abhyas-last-email") || "";
+  if (lastEmail && !document.getElementById("syncEmail").value) {
+    document.getElementById("syncEmail").value = lastEmail;
+  }
+
   document.getElementById("syncStatus").textContent = "";
   document.getElementById("syncModal").classList.add("open");
+}
+
+function replacePAT() {
+  if (!confirm("Replace the saved GitHub PAT? (You'll need to paste a new token.)")) return;
+  savePAT(null);
+  document.getElementById("patNewBlock").style.display = "block";
+  document.getElementById("patSavedBlock").style.display = "none";
+  document.getElementById("syncPAT").focus();
 }
 function closeSyncModal() { document.getElementById("syncModal").classList.remove("open"); }
 
 async function doSignIn() {
   const email = document.getElementById("syncEmail").value.trim();
   const password = document.getElementById("syncPassword").value;
-  const pat = document.getElementById("syncPAT").value.trim();
+  const patInput = document.getElementById("syncPAT").value.trim();
+  const existingPAT = loadPAT();
+  const pat = patInput || existingPAT;
   const status = document.getElementById("syncStatus");
   if (!email || !password) { status.textContent = "Email + password required"; return; }
+  if (!pat) { status.textContent = "GitHub PAT required (first-time setup on this device)"; return; }
+  localStorage.setItem("abhyas-last-email", email);
   status.textContent = "Signing in...";
   try {
     const res = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
@@ -1046,8 +1080,9 @@ async function doSignIn() {
       email: data.user.email,
       expires_at: Date.now() + (data.expires_in || 3600) * 1000
     });
-    if (pat) savePAT(pat);
+    if (patInput) savePAT(patInput); // only save if user entered a new one
     document.getElementById("syncPassword").value = "";
+    document.getElementById("syncPAT").value = "";
     updateSyncBtn();
     status.textContent = "Signed in. Pulling cloud data...";
     await pullFromCloud();
