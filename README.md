@@ -1,73 +1,64 @@
-# Adarsh · आदर्श
+# Abhyas · अभ्यास
 
-UPSC Mains topper answer copies, organized by paper and sub-topic.
+Personal UPSC answer-writing log. Every attempt. Every evaluation. One source of truth.
 
 ## What it is
 
-A personal vault of model answers from UPSC toppers. Six papers (GS1–4, Essay, Math Optional). Each paper has sub-topics from the standard UPSC Mains syllabus. Each sub-topic contains questions, and each question can have multiple toppers' answers (scanned handwritten copies as images).
+A practice journal for your handwritten Mains answers — no matter where the question came from. PYQ, test series, teacher's question, mock, or random self-practice — they all live here with photos, scores, and feedback.
 
-## How to use
+## What changed from Adarsh
 
-1. Open the app — `index.html` works standalone, no backend needed for v1.
-2. Tap the **+** floating button (bottom-right) to add a topper answer.
-3. Fill in: paper, sub-topic, question, marks/year, topper name, AIR rank, marks got, image URLs (one per line).
-4. Image URLs should point to scanned answer images — host them anywhere (GitHub raw URLs, Cloudinary, Imgur, your Supabase Storage).
-5. Browse by paper → sub-topic → question → topper's answer.
+Adarsh was meant to host topper copies. **Abhyas is for YOUR attempts only.** Topper copies live on upscpath (subscribed) or in your shared Drive. This app focuses on what only you can produce — your own writing practice + evaluations.
+
+## Core flow
+
+1. Write your answer on paper (set Bholwa Pomodoro 8 min).
+2. Open Abhyas → tap **+** → fill source (PYQ / Test / Teacher / Mock / Random), paper, topic, question text.
+3. **📷 Take photo** of each page → save.
+4. Later, after teacher/self review → open that attempt → tap **+ Evaluation** → add score, comments, strengths tags, weaknesses tags, optional photos of marked copy.
+5. Browse **Insights** tab to see your strengths and weaknesses patterns across all attempts.
+
+## Source types
+
+- 📘 **PYQ** — Previous Year Question
+- 📝 **Test Series** — paid coaching test
+- 👨‍🏫 **Teacher** — question given by a teacher
+- 🎯 **Mock** — full-length mock test
+- 🎲 **Random** — self-practice / from book / Telegram
+
+Filter at home screen by source.
 
 ## v1 features
 
-- ✓ 6 papers with standard UPSC syllabus seeded as sub-topics
-- ✓ Add/view answer with metadata (topper, rank, year, marks got, pages)
-- ✓ Image lightbox (tap any image to zoom)
-- ✓ Save / bookmark answers
-- ✓ Recent (last 30 viewed)
-- ✓ Toppers index (browse by topper)
-- ✓ Search across question text, topper name, year, topic
-- ✓ Light Anthropic-inspired theme
+- Photo upload (camera or gallery), auto-compressed
+- Question + answer + evaluation per attempt
+- Strengths / weaknesses as comma-separated tags
+- Insights view: aggregate tag frequency
+- Saved / Recent / Source filter
+- Search across all text (question, notes, evaluation)
+- Light Anthropic-inspired theme
 
-## v2 (when ready)
+## v2 (when needed)
 
-- Cloud sync via Supabase (same Gmail as your other apps)
-- Image upload via GitHub OAuth (commits to a `study/answers/` folder in this repo)
-- Bulk import from JSON
-- Filter by year, marks, rank range
-- Notes per answer (what makes it good)
-- Share specific answers via deep link
+- Cloud sync via Supabase (same Gmail)
+- Image storage in Supabase Storage (currently base64 in localStorage)
+- Export as PDF (full practice log for revision)
+- Charts: improvement over time per topic
+- Cross-link to upsc-mains-pyq (when attempt is a PYQ)
 
 ## Deploy
 
-Same workflow as your other apps:
+Repo can be renamed from `adarsh` to `abhyas` on GitHub:
+1. https://github.com/sauravanandb2w/adarsh/settings
+2. Repository name field → change to `abhyas` → Rename
+3. Update local remote:
+   ```bash
+   cd ~/Desktop/Health/adarsh
+   git remote set-url personal https://github.com/sauravanandb2w/abhyas.git
+   ```
+4. GitHub Pages URL auto-updates to `sauravanandb2w.github.io/abhyas/`
+5. Locally, optional: rename folder `adarsh` → `abhyas`
 
-```bash
-git init
-git add .
-git commit -m "Adarsh v1"
-git remote add personal https://github.com/sauravanandb2w/adarsh.git
-git push -u personal main
-```
+## Data migrates automatically
 
-Then Netlify → Import from GitHub → Deploy.
-
-## Data structure
-
-Each answer is stored as:
-
-```js
-{
-  id: "ans-1717..." ,
-  paper: "gs2",            // gs1 | gs2 | gs3 | gs4 | essay | math
-  topic: "Pressure Groups & RPA",
-  question: "Critically examine...",
-  marks: "15",
-  year: "2022",
-  topper: "Shruti Sharma",
-  rank: "1",
-  got: "13",
-  pages: "2",
-  images: ["https://.../p1.jpg", "https://.../p2.jpg"],
-  notes: "Strong intro · 3 examples · clean diagram",
-  createdAt: 1717760000000
-}
-```
-
-Currently in `localStorage`. Will migrate to Supabase in v2.
+Existing Adarsh data in localStorage migrates on first load — only `type: "mine"` entries kept, with sensible defaults for source/date fields.
