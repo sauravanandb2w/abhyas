@@ -146,11 +146,17 @@
   .photo-btn { background: var(--bg-2); border: 1px solid var(--line); color: var(--text); padding: 9px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
   .photo-btn:hover { background: var(--card-2); border-color: var(--muted-2); }
   .photo-btn input { display: none; }
-  .photo-thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
-  .photo-thumb { width: 60px; height: 60px; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid var(--line); position: relative; }
+  .photo-thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+  .thumb-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .photo-thumb { width: 70px; height: 70px; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid var(--line); position: relative; }
   .photo-thumb.pdf { background: var(--card-2); display: flex; align-items: center; justify-content: center; font-size: 22px; }
-  .photo-thumb .remove { position: absolute; top: -6px; right: -6px; background: var(--bad); color: #fff; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; border: 2px solid var(--bg); }
+  .photo-thumb .remove { position: absolute; top: -6px; right: -6px; background: var(--bad); color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; border: 2px solid var(--bg); line-height: 1; }
   .photo-thumb.existing { box-shadow: 0 0 0 2px var(--good); }
+  .thumb-controls { display: flex; gap: 2px; align-items: center; font-size: 11px; color: var(--muted); }
+  .thumb-controls button { background: var(--bg-2); border: 1px solid var(--line); color: var(--text); width: 22px; height: 22px; border-radius: 5px; cursor: pointer; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0; font-family: inherit; }
+  .thumb-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .thumb-controls button:hover:not(:disabled) { background: var(--card); border-color: var(--muted-2); }
+  .thumb-controls .page-num { min-width: 22px; text-align: center; font-weight: 600; color: var(--text); font-family: var(--serif); }
   .pdf-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.12s; }
   .pdf-card:hover { background: var(--card-2); }
   .pdf-card .pdf-icon { font-size: 28px; }
@@ -1110,11 +1116,28 @@ function renderPhotoThumbs(target) {
   const el = document.getElementById(target === "answer" ? "answerPhotoThumbs" : "evalPhotoThumbs");
   el.innerHTML = arr.map((url, i) => {
     const existing = typeof url === "string" && url.startsWith("http") ? " existing" : "";
-    if (isPdf(url)) {
-      return `<div class="photo-thumb pdf${existing}" title="PDF page ${i+1}">📄<span class="remove" onclick="removePhoto('${target}', ${i})">×</span></div>`;
-    }
-    return `<div class="photo-thumb${existing}" style="background-image: url('${url}')"><span class="remove" onclick="removePhoto('${target}', ${i})">×</span></div>`;
+    const isPdfFile = isPdf(url);
+    const thumb = isPdfFile
+      ? `<div class="photo-thumb pdf${existing}" title="PDF page ${i+1}">📄<span class="remove" onclick="removePhoto('${target}', ${i})">×</span></div>`
+      : `<div class="photo-thumb${existing}" style="background-image: url('${url}')"><span class="remove" onclick="removePhoto('${target}', ${i})">×</span></div>`;
+    const canMoveUp = i > 0;
+    const canMoveDown = i < arr.length - 1;
+    const controls = `<div class="thumb-controls">
+      <button onclick="movePhoto('${target}', ${i}, -1)" ${canMoveUp ? "" : "disabled"} title="Move earlier">←</button>
+      <span class="page-num">${i+1}</span>
+      <button onclick="movePhoto('${target}', ${i}, 1)" ${canMoveDown ? "" : "disabled"} title="Move later">→</button>
+    </div>`;
+    return `<div class="thumb-wrap">${thumb}${controls}</div>`;
   }).join("");
+}
+
+function movePhoto(target, idx, dir) {
+  const arr = target === "answer" ? answerPhotos : evalPhotos;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  // Swap
+  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+  renderPhotoThumbs(target);
 }
 function removePhoto(target, idx) {
   const arr = target === "answer" ? answerPhotos : evalPhotos;
