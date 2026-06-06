@@ -148,13 +148,22 @@
   .photo-btn input { display: none; }
   .photo-thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
   .photo-thumb { width: 60px; height: 60px; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid var(--line); position: relative; }
+  .photo-thumb.pdf { background: var(--card-2); display: flex; align-items: center; justify-content: center; font-size: 22px; }
   .photo-thumb .remove { position: absolute; top: -6px; right: -6px; background: var(--bad); color: #fff; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; border: 2px solid var(--bg); }
+  .photo-thumb.existing { box-shadow: 0 0 0 2px var(--good); }
+  .pdf-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.12s; }
+  .pdf-card:hover { background: var(--card-2); }
+  .pdf-card .pdf-icon { font-size: 28px; }
+  .pdf-card .pdf-name { font-weight: 500; font-size: 14px; }
+  .pdf-card .pdf-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
   /* Lightbox */
   .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; }
   .lightbox.open { display: flex; }
   .lightbox img { max-width: 100%; max-height: 100%; }
-  .lightbox .close { position: absolute; top: 16px; right: 16px; color: #fff; font-size: 24px; cursor: pointer; background: rgba(0,0,0,0.5); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .lightbox iframe { width: 100%; height: 95vh; background: #fff; border: 0; border-radius: 8px; }
+  .lightbox .close { position: absolute; top: 16px; right: 16px; color: #fff; font-size: 24px; cursor: pointer; background: rgba(0,0,0,0.5); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 1; }
+  .lightbox .open-new { position: absolute; top: 16px; left: 16px; color: #fff; font-size: 13px; cursor: pointer; background: rgba(0,0,0,0.5); padding: 8px 14px; border-radius: 999px; z-index: 1; text-decoration: none; }
 
   /* FAB */
   .fab { position: fixed; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0) + 78px); background: var(--accent-2); color: #fdf6f0; border: 0; width: 52px; height: 52px; border-radius: 50%; font-size: 22px; box-shadow: 0 4px 16px rgba(204,120,92,0.35); cursor: pointer; z-index: 50; }
@@ -230,8 +239,12 @@
     <div class="answer-images" id="ansImages"></div>
     <div class="answer-actions">
       <button class="ans-btn" id="ansSaveBtn" onclick="toggleSaveAnswer()">★ Save</button>
+      <button class="ans-btn ghost" onclick="editAnswer()">✏️ Edit</button>
       <button class="ans-btn ghost" onclick="openAddEval()">+ Evaluation</button>
-      <button class="ans-btn ghost" onclick="shareForEval()">📤 Share for eval</button>
+    </div>
+    <div class="answer-actions" style="margin-top: 0;">
+      <button class="ans-btn ghost" onclick="shareForEval()" style="flex: 1;">📤 Share for eval</button>
+      <button class="ans-btn ghost" onclick="deleteAnswer()" style="flex: 0; padding: 11px 16px; color: var(--bad); border-color: rgba(181,79,72,0.3);">🗑</button>
     </div>
     <div id="evalSection"></div>
   </section>
@@ -298,13 +311,16 @@
       <div><label>Self-score</label><input id="addSelfScore" placeholder="9 / 15"/></div>
       <div><label>Time (min)</label><input id="addTime" placeholder="8"/></div>
     </div>
-    <label>📷 Photos of your answer (camera or gallery)</label>
+    <label>📷 Photos or PDF of your answer</label>
     <div class="photo-upload">
       <label class="photo-btn">📷 Take photo
         <input type="file" accept="image/*" capture="environment" onchange="handlePhotoUpload(event, 'answer')" multiple/>
       </label>
       <label class="photo-btn">🖼️ Gallery
         <input type="file" accept="image/*" onchange="handlePhotoUpload(event, 'answer')" multiple/>
+      </label>
+      <label class="photo-btn">📄 PDF
+        <input type="file" accept="application/pdf" onchange="handlePhotoUpload(event, 'answer')" multiple/>
       </label>
     </div>
     <div class="photo-thumbs" id="answerPhotoThumbs"></div>
@@ -333,13 +349,16 @@
     <input id="evalStrengths" placeholder="strong structure, good examples, clear handwriting"/>
     <label>🩹 Weaknesses to work on (comma-separated tags)</label>
     <input id="evalWeaknesses" placeholder="weak intro, no diagram, time management"/>
-    <label>📷 Photos of marked/feedback copy</label>
+    <label>📷 Photos or PDF of marked / feedback copy</label>
     <div class="photo-upload">
       <label class="photo-btn">📷 Take photo
         <input type="file" accept="image/*" capture="environment" onchange="handlePhotoUpload(event, 'eval')" multiple/>
       </label>
       <label class="photo-btn">🖼️ Gallery
         <input type="file" accept="image/*" onchange="handlePhotoUpload(event, 'eval')" multiple/>
+      </label>
+      <label class="photo-btn">📄 PDF
+        <input type="file" accept="application/pdf" onchange="handlePhotoUpload(event, 'eval')" multiple/>
       </label>
     </div>
     <div class="photo-thumbs" id="evalPhotoThumbs"></div>
@@ -620,9 +639,20 @@ function openAnswer(id, fromPaper) {
       <div class="ts"><div class="v">${a.timeMin||"—"}</div><div class="l">Min</div></div>
       <div class="ts"><div class="v">${(a.images||[]).length}</div><div class="l">Pages</div></div>
     </div>`;
-  document.getElementById("ansImages").innerHTML = (a.images||[]).map(url =>
-    `<div class="answer-img-wrap" onclick="openLightbox('${escapeAttr(url)}')"><img loading="lazy" src="${escapeAttr(url)}" alt="answer page"/></div>`
-  ).join("") || `<div class="empty"><div class="em-title">No images attached</div></div>`;
+  document.getElementById("ansImages").innerHTML = (a.images||[]).length === 0
+    ? `<div class="empty"><div class="em-title">No pages attached</div></div>`
+    : (a.images||[]).map((url, idx) => {
+        if (isPdf(url)) {
+          return `<div class="pdf-card" onclick="openLightbox('${escapeAttr(url)}')">
+            <div class="pdf-icon">📄</div>
+            <div>
+              <div class="pdf-name">PDF · page ${idx+1}</div>
+              <div class="pdf-meta">Tap to view</div>
+            </div>
+          </div>`;
+        }
+        return `<div class="answer-img-wrap" onclick="openLightbox('${escapeAttr(url)}')"><img loading="lazy" src="${escapeAttr(url)}" alt="answer page"/></div>`;
+      }).join("");
 
   // Evaluation section
   const evalEl = document.getElementById("evalSection");
@@ -839,17 +869,73 @@ function renderInsights() {
     </div>`;
 }
 
-// ============ ADD ANSWER ============
+// ============ ADD / EDIT ANSWER ============
+let editingAnswerId = null;
+
 function openAddAnswer() {
+  editingAnswerId = null;
+  document.querySelector("#addModal h2").textContent = "Add answer attempt";
   document.getElementById("addDate").value = new Date().toISOString().slice(0,10);
   const paperSel = document.getElementById("addPaper");
   paperSel.innerHTML = PAPERS.map(p => `<option value="${p.key}">${p.name}</option>`).join("");
   paperSel.onchange = updateTopicSelect;
   updateTopicSelect();
   if (viewingFromPaper) { paperSel.value = viewingFromPaper; updateTopicSelect(); }
+  // Clear all fields
+  ["addQuestion","addMarks","addYear","addSelfScore","addTime","addNotes"].forEach(fid => document.getElementById(fid).value = "");
+  document.getElementById("addSource").value = "pyq";
   answerPhotos = [];
   renderPhotoThumbs("answer");
   document.getElementById("addModal").classList.add("open");
+}
+
+function editAnswer() {
+  if (!viewingAnswerId) return;
+  const a = state.answers.find(x => x.id === viewingAnswerId);
+  if (!a) return;
+  editingAnswerId = a.id;
+  document.querySelector("#addModal h2").textContent = "Edit attempt";
+  const paperSel = document.getElementById("addPaper");
+  paperSel.innerHTML = PAPERS.map(p => `<option value="${p.key}">${p.name}</option>`).join("");
+  paperSel.onchange = updateTopicSelect;
+  paperSel.value = a.paper || "gs1";
+  updateTopicSelect();
+  if (a.topic) document.getElementById("addTopic").value = a.topic;
+  document.getElementById("addSource").value = a.source || "pyq";
+  document.getElementById("addDate").value = a.attemptDate || new Date().toISOString().slice(0,10);
+  document.getElementById("addQuestion").value = a.question || "";
+  document.getElementById("addMarks").value = a.marks || "";
+  document.getElementById("addYear").value = a.year || "";
+  document.getElementById("addSelfScore").value = a.selfScore || "";
+  document.getElementById("addTime").value = a.timeMin || "";
+  document.getElementById("addNotes").value = a.notes || "";
+  answerPhotos = [...(a.images || [])];
+  renderPhotoThumbs("answer");
+  document.getElementById("addModal").classList.add("open");
+}
+
+function deleteAnswer() {
+  if (!viewingAnswerId) return;
+  const a = state.answers.find(x => x.id === viewingAnswerId);
+  if (!a) return;
+  if (!confirm("Delete this attempt? Photos in GitHub will remain (manually delete from repo if needed). This cannot be undone.")) return;
+  // Remove from state
+  state.answers = state.answers.filter(x => x.id !== viewingAnswerId);
+  state.saved = state.saved.filter(id => id !== viewingAnswerId);
+  state.recent = state.recent.filter(id => id !== viewingAnswerId);
+  save();
+  // Cloud delete (best-effort)
+  if (loadSyncSession && loadSyncSession()) {
+    deleteFromCloud(viewingAnswerId).catch(e => console.warn("cloud delete", e));
+  }
+  viewingAnswerId = null;
+  toast("Attempt deleted");
+  goView("home");
+}
+
+async function deleteFromCloud(id) {
+  await supaFetch(`/abhyas_evaluations?answer_id=eq.${id}`, { method: "DELETE" });
+  await supaFetch(`/abhyas_answers?id=eq.${id}`, { method: "DELETE" });
 }
 function updateTopicSelect() {
   const paperKey = document.getElementById("addPaper").value;
@@ -858,34 +944,65 @@ function updateTopicSelect() {
   topicSel.innerHTML = paper.topics.map(t => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join("");
   if (activeTopic && paper.topics.includes(activeTopic)) topicSel.value = activeTopic;
 }
-function closeAddAnswer() { document.getElementById("addModal").classList.remove("open"); }
+function closeAddAnswer() {
+  document.getElementById("addModal").classList.remove("open");
+  editingAnswerId = null;
+}
 function saveAddAnswer() {
-  const id = "a-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
-  const a = {
-    id,
-    source: document.getElementById("addSource").value,
-    paper: document.getElementById("addPaper").value,
-    topic: document.getElementById("addTopic").value,
-    question: document.getElementById("addQuestion").value.trim(),
-    marks: document.getElementById("addMarks").value.trim(),
-    year: document.getElementById("addYear").value.trim(),
-    attemptDate: document.getElementById("addDate").value,
-    selfScore: document.getElementById("addSelfScore").value.trim(),
-    timeMin: document.getElementById("addTime").value.trim(),
-    images: [...answerPhotos],
-    notes: document.getElementById("addNotes").value.trim(),
-    evaluation: null,
-    createdAt: Date.now()
-  };
-  if (!a.question) { alert("Question text is required."); return; }
-  state.answers.unshift(a);
-  save();
-  ["addQuestion","addMarks","addYear","addSelfScore","addTime","addNotes"].forEach(fid => document.getElementById(fid).value = "");
-  answerPhotos = []; renderPhotoThumbs("answer");
-  closeAddAnswer();
-  toast("✓ Attempt saved");
-  if (currentView === "home") renderHome();
-  else if (currentView === "paper" && viewingFromPaper) openPaper(viewingFromPaper);
+  const question = document.getElementById("addQuestion").value.trim();
+  if (!question) { alert("Question text is required."); return; }
+
+  if (editingAnswerId) {
+    // EDIT EXISTING
+    const a = state.answers.find(x => x.id === editingAnswerId);
+    if (!a) return;
+    a.source = document.getElementById("addSource").value;
+    a.paper = document.getElementById("addPaper").value;
+    a.topic = document.getElementById("addTopic").value;
+    a.question = question;
+    a.marks = document.getElementById("addMarks").value.trim();
+    a.year = document.getElementById("addYear").value.trim();
+    a.attemptDate = document.getElementById("addDate").value;
+    a.selfScore = document.getElementById("addSelfScore").value.trim();
+    a.timeMin = document.getElementById("addTime").value.trim();
+    a.notes = document.getElementById("addNotes").value.trim();
+    a.images = [...answerPhotos];
+    a._cloudSynced = false; // re-sync needed
+    save();
+    answerPhotos = []; renderPhotoThumbs("answer");
+    editingAnswerId = null;
+    closeAddAnswer();
+    toast("✓ Attempt updated");
+    if (loadSyncSession()) pushSingleAnswerToCloud(a).catch(e => console.warn(e));
+    openAnswer(a.id, a.paper);
+  } else {
+    // CREATE NEW
+    const id = "a-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
+    const a = {
+      id,
+      source: document.getElementById("addSource").value,
+      paper: document.getElementById("addPaper").value,
+      topic: document.getElementById("addTopic").value,
+      question,
+      marks: document.getElementById("addMarks").value.trim(),
+      year: document.getElementById("addYear").value.trim(),
+      attemptDate: document.getElementById("addDate").value,
+      selfScore: document.getElementById("addSelfScore").value.trim(),
+      timeMin: document.getElementById("addTime").value.trim(),
+      images: [...answerPhotos],
+      notes: document.getElementById("addNotes").value.trim(),
+      evaluation: null,
+      createdAt: Date.now()
+    };
+    state.answers.unshift(a);
+    save();
+    ["addQuestion","addMarks","addYear","addSelfScore","addTime","addNotes"].forEach(fid => document.getElementById(fid).value = "");
+    answerPhotos = []; renderPhotoThumbs("answer");
+    closeAddAnswer();
+    toast("✓ Attempt saved");
+    if (currentView === "home") renderHome();
+    else if (currentView === "paper" && viewingFromPaper) openPaper(viewingFromPaper);
+  }
 }
 
 // ============ ADD EVALUATION ============
@@ -934,14 +1051,39 @@ async function handlePhotoUpload(event, target) {
   const files = Array.from(event.target.files || []);
   const arr = target === "answer" ? answerPhotos : evalPhotos;
   for (const file of files) {
-    if (!file.type.startsWith("image/")) continue;
     try {
-      const dataUrl = await readCompressed(file);
-      arr.push(dataUrl);
-    } catch (e) { console.warn("photo", e); }
+      if (file.type === "application/pdf") {
+        // PDFs are not compressed; read as base64 directly
+        if (file.size > 5 * 1024 * 1024) {
+          if (!confirm(`This PDF is ${Math.round(file.size/1024/1024)} MB. Upload anyway? Large PDFs upload slowly to GitHub.`)) continue;
+        }
+        const dataUrl = await readAsDataUrl(file);
+        arr.push(dataUrl);
+      } else if (file.type.startsWith("image/")) {
+        const dataUrl = await readCompressed(file);
+        arr.push(dataUrl);
+      }
+    } catch (e) { console.warn("photo/pdf", e); }
   }
   renderPhotoThumbs(target);
   event.target.value = "";
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function isPdf(urlOrData) {
+  if (!urlOrData) return false;
+  if (typeof urlOrData !== "string") return false;
+  if (urlOrData.startsWith("data:application/pdf")) return true;
+  if (urlOrData.toLowerCase().endsWith(".pdf")) return true;
+  return false;
 }
 function readCompressed(file, maxW = 1400, q = 0.78) {
   return new Promise((resolve, reject) => {
@@ -966,9 +1108,13 @@ function readCompressed(file, maxW = 1400, q = 0.78) {
 function renderPhotoThumbs(target) {
   const arr = target === "answer" ? answerPhotos : evalPhotos;
   const el = document.getElementById(target === "answer" ? "answerPhotoThumbs" : "evalPhotoThumbs");
-  el.innerHTML = arr.map((url, i) =>
-    `<div class="photo-thumb" style="background-image: url('${url}')"><span class="remove" onclick="removePhoto('${target}', ${i})">×</span></div>`
-  ).join("");
+  el.innerHTML = arr.map((url, i) => {
+    const existing = typeof url === "string" && url.startsWith("http") ? " existing" : "";
+    if (isPdf(url)) {
+      return `<div class="photo-thumb pdf${existing}" title="PDF page ${i+1}">📄<span class="remove" onclick="removePhoto('${target}', ${i})">×</span></div>`;
+    }
+    return `<div class="photo-thumb${existing}" style="background-image: url('${url}')"><span class="remove" onclick="removePhoto('${target}', ${i})">×</span></div>`;
+  }).join("");
 }
 function removePhoto(target, idx) {
   const arr = target === "answer" ? answerPhotos : evalPhotos;
@@ -987,8 +1133,33 @@ function onSearch() {
 }
 
 // ============ LIGHTBOX ============
-function openLightbox(url) { document.getElementById("lightboxImg").src = url; document.getElementById("lightbox").classList.add("open"); }
-function closeLightbox() { document.getElementById("lightbox").classList.remove("open"); document.getElementById("lightboxImg").src = ""; }
+function openLightbox(url) {
+  const lb = document.getElementById("lightbox");
+  // Clear previous content
+  lb.querySelectorAll("img, iframe, .open-new").forEach(n => n.remove());
+  if (isPdf(url)) {
+    const iframe = document.createElement("iframe");
+    iframe.src = url;
+    lb.appendChild(iframe);
+    // Add "Open in new tab" for full PDF features
+    const link = document.createElement("a");
+    link.className = "open-new";
+    link.href = url; link.target = "_blank"; link.textContent = "↗ Open in new tab";
+    lb.appendChild(link);
+  } else {
+    const img = document.createElement("img");
+    img.id = "lightboxImg";
+    img.alt = "answer page";
+    img.src = url;
+    lb.appendChild(img);
+  }
+  lb.classList.add("open");
+}
+function closeLightbox() {
+  const lb = document.getElementById("lightbox");
+  lb.classList.remove("open");
+  lb.querySelectorAll("img, iframe, .open-new").forEach(n => n.remove());
+}
 
 // ============ HELPERS ============
 function escapeHtml(s) { return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -1227,15 +1398,38 @@ async function pushEvalToCloud(answerId, evalData) {
   });
 }
 
-// ===== GitHub photo upload =====
+// ===== GitHub photo / PDF upload =====
 async function uploadPhotoToGitHub(answerId, filename, base64DataUrl) {
   const pat = loadPAT();
   if (!pat) return null;
   if (typeof base64DataUrl !== "string" || !base64DataUrl.startsWith("data:")) return null;
+  // Detect file extension from data URL
+  let ext = "jpg";
+  if (base64DataUrl.startsWith("data:application/pdf")) ext = "pdf";
+  else if (base64DataUrl.startsWith("data:image/png")) ext = "png";
+  else if (base64DataUrl.startsWith("data:image/webp")) ext = "webp";
+  // Replace extension in filename to match the actual content type
+  const baseName = filename.replace(/\.[a-z]+$/i, "");
+  const finalName = baseName + "." + ext;
   const b64 = base64DataUrl.split(",")[1];
-  const path = `data/photos/${answerId}/${filename}`;
+  const path = `data/photos/${answerId}/${finalName}`;
   const url = `https://api.github.com/repos/${GH_REPO}/contents/${path}`;
   try {
+    // Check if file already exists (need SHA for update)
+    let sha = null;
+    try {
+      const checkRes = await fetch(url, {
+        headers: { "Authorization": "token " + pat, "Accept": "application/vnd.github.v3+json" }
+      });
+      if (checkRes.ok) {
+        const existing = await checkRes.json();
+        sha = existing.sha;
+      }
+    } catch {}
+
+    const body = { message: `Upload ${path}`, content: b64 };
+    if (sha) body.sha = sha;
+
     const res = await fetch(url, {
       method: "PUT",
       headers: {
@@ -1243,17 +1437,13 @@ async function uploadPhotoToGitHub(answerId, filename, base64DataUrl) {
         "Accept": "application/vnd.github.v3+json",
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        message: `Upload ${path}`,
-        content: b64
-      })
+      body: JSON.stringify(body)
     });
     if (!res.ok) {
       const t = await res.text();
       console.warn("GitHub upload failed", res.status, t);
       return null;
     }
-    // Public URL via GitHub Pages
     return `https://sauravanandb2w.github.io/abhyas/${path}`;
   } catch (e) {
     console.warn("GitHub upload exception", e);
