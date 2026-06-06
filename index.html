@@ -780,32 +780,42 @@ async function shareForEval() {
   const sizeKB = Math.round(evalUrl.length / 1024);
 
   const greeting = teacher ? teacher + "," : "Sir / Ma'am,";
-  const teacherMessage =
+
+  // Friendly multi-line message — what teacher will actually read
+  const messageBody =
     greeting + "\n\n" +
-    "Please evaluate my answer at the link below. It has the question, my handwritten attempt, and a quick feedback form (all fields optional).\n\n" +
-    evalUrl + "\n\n" +
+    "I've attempted a UPSC Mains answer and would value your evaluation.\n\n" +
+    "The link below opens a clean page with:\n" +
+    "• The question\n" +
+    "• My handwritten attempt\n" +
+    "• A quick feedback form (all fields optional)\n\n" +
+    "Just fill whatever's helpful — even one score or one comment is gold.\n\n" +
     "Thank you,\nSaurav";
 
-  // Try native share sheet first (mobile)
+  // Full message including link (used for clipboard / fallback)
+  const fullMessage = messageBody + "\n\n" + evalUrl;
+
+  // Try native share sheet first (mobile) — pass text and url SEPARATELY so messengers render both
   if (navigator.share) {
     try {
       await navigator.share({
         title: "Abhyas · Please evaluate my answer",
-        text: teacherMessage
+        text: messageBody,
+        url: evalUrl
       });
       toast("✓ Shared (" + sizeKB + " KB link)");
       return;
     } catch (e) {
-      if (e.name === "AbortError") return; // user cancelled, don't fall through
+      if (e.name === "AbortError") return; // user cancelled
       console.warn("share api error", e);
     }
   }
 
-  // Fallback 1: copy to clipboard
+  // Fallback 1: copy combined message to clipboard
   let copied = false;
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(teacherMessage);
+      await navigator.clipboard.writeText(fullMessage);
       copied = true;
     }
   } catch (e) {
@@ -815,11 +825,11 @@ async function shareForEval() {
   if (copied) {
     alert(
       "✓ Message + link copied to clipboard (" + sizeKB + " KB).\n\n" +
-      "Paste in WhatsApp / email to send to teacher."
+      "Paste in WhatsApp / email to send to teacher.\n\n" +
+      "Preview:\n\n" + messageBody.slice(0, 200) + "..."
     );
   } else {
-    // Fallback 2: show link in a prompt the user can copy manually
-    prompt("Copy this link and send to your teacher:", evalUrl);
+    prompt("Copy this link and send to your teacher:", fullMessage);
   }
 }
 
