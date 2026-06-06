@@ -138,15 +138,20 @@
       <label>Any other comments</label>
       <textarea id="evalOther" placeholder="Read more on this theme · attempt similar question from 2019 paper · check the Hindu editorial of 14 May..." style="min-height: 70px;"></textarea>
 
+      <div id="sendingToBox" style="background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin-top: 14px; font-size: 12px; color: var(--muted); line-height: 1.5;">
+        <b style="color: var(--text);">Sending to:</b> <span id="sendingToEmail" style="color: var(--accent-2); font-weight: 600;"></span><br>
+        <span id="sendingToWA" style="display: none;"><b style="color: var(--text);">Or WhatsApp:</b> <span id="sendingToWANum" style="color: var(--accent-2); font-weight: 600;"></span></span>
+      </div>
+
       <div class="send-actions">
-        <a href="#" class="send-btn" id="emailBtn">📧 Send via Email</a>
-        <a href="#" class="send-btn ghost" id="whatsappBtn">💬 Send via WhatsApp</a>
+        <a href="#" class="send-btn" id="whatsappBtn">💬 Send via WhatsApp</a>
+        <a href="#" class="send-btn ghost" id="emailBtn">📧 Send via Email</a>
         <button class="send-btn ghost" onclick="copyEval()">📋 Copy to clipboard</button>
       </div>
 
       <div class="hint">
-        <b>Email</b> opens your default mail app (Gmail / Mail) with the evaluation pre-filled.<br>
-        <b>WhatsApp</b> opens chat — pick Saurav and send.<br>
+        <b>WhatsApp</b> opens chat with Saurav directly (when number provided) — just hit send.<br>
+        <b>Email</b> opens your mail app with Saurav's email pre-filled in "To" — just hit send.<br>
         <b>Copy</b> puts the evaluation on your clipboard — paste anywhere.
       </div>
     </div>
@@ -297,6 +302,14 @@ function setupSendButtons(a) {
   const emailBtn = document.getElementById("emailBtn");
   const whatsappBtn = document.getElementById("whatsappBtn");
   const recipientEmail = a.userEmail || "anandsaurav100@gmail.com";
+  const waNumber = (a.userWhatsApp || "").replace(/[^0-9]/g, "");
+
+  // Show recipient info
+  document.getElementById("sendingToEmail").textContent = recipientEmail;
+  if (waNumber) {
+    document.getElementById("sendingToWA").style.display = "inline";
+    document.getElementById("sendingToWANum").textContent = "+" + waNumber;
+  }
 
   function updateLinks() {
     const e = gatherEval();
@@ -305,7 +318,11 @@ function setupSendButtons(a) {
     const subject = `📋 ${e.by} evaluated: ${(a.question || "").slice(0, 50)}...`;
 
     emailBtn.href = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    whatsappBtn.href = `https://wa.me/?text=${encodeURIComponent(body)}`;
+    // Use direct WhatsApp number if provided, else open chat picker
+    const waUrl = waNumber
+      ? `https://wa.me/${waNumber}?text=${encodeURIComponent(body)}`
+      : `https://wa.me/?text=${encodeURIComponent(body)}`;
+    whatsappBtn.href = waUrl;
   }
 
   ["evalBy","evalDate","evalScore","evalComments","evalStrengths","evalWeaknesses","evalOther"].forEach(id => {

@@ -724,6 +724,19 @@ async function shareForEval() {
   const teacher = (teacherName || "").trim();
   if (teacher) localStorage.setItem("abhyas-last-teacher", teacher);
 
+  // One-time: ask for user's WhatsApp number (for direct WhatsApp send back)
+  let myWA = localStorage.getItem("abhyas-my-whatsapp") || "";
+  if (!myWA) {
+    const wa = prompt(
+      "Your WhatsApp number (one-time)\n\nWith country code, no + or spaces. e.g. 919876543210\n\nThis lets teacher's WhatsApp button send evaluation directly to YOUR chat. Leave blank to skip.",
+      ""
+    );
+    if (wa !== null) {
+      myWA = (wa || "").replace(/[^0-9]/g, "");
+      if (myWA) localStorage.setItem("abhyas-my-whatsapp", myWA);
+    }
+  }
+
   toast("Preparing share link...");
 
   // Process images: URLs stay as URLs (eval.html loads them from network),
@@ -756,7 +769,8 @@ async function shareForEval() {
     notes: a.notes,
     images: imagesForShare,
     teacherName: teacher,
-    userEmail: "anandsaurav100@gmail.com"
+    userEmail: "anandsaurav100@gmail.com",
+    userWhatsApp: myWA || ""
   };
 
   const json = JSON.stringify(sharePayload);
