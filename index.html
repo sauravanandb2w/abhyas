@@ -1298,8 +1298,41 @@ function doSignOut() {
 }
 
 // ===== Supabase REST helpers =====
-async function supaFetch(path, init = {}) {
+async function ensureFreshToken() {
   const s = loadSyncSession();
+  if (!s) return null;
+  // If access token still valid for >60s, use as-is
+  if (s.expires_at && s.expires_at - Date.now() > 60000) return s;
+  // Need refresh
+  if (!s.refresh_token) return s;
+  try {
+    const res = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: { "apikey": SUPA_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: s.refresh_token })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.access_token) {
+      console.warn("Token refresh failed", data);
+      return s;
+    }
+    const fresh = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || s.refresh_token,
+      user_id: s.user_id,
+      email: s.email,
+      expires_at: Date.now() + (data.expires_in || 3600) * 1000
+    };
+    saveSyncSession(fresh);
+    return fresh;
+  } catch (e) {
+    console.warn("Token refresh exception", e);
+    return s;
+  }
+}
+
+async function supaFetch(path, init = {}) {
+  const s = await ensureFreshToken();
   if (!s) throw new Error("not signed in");
   const headers = Object.assign({
     "apikey": SUPA_KEY,
@@ -1309,6 +1342,22 @@ async function supaFetch(path, init = {}) {
   const res = await fetch(`${SUPA_URL}/rest/v1${path}`, Object.assign({}, init, { headers }));
   if (!res.ok) {
     const t = await res.text();
+    // If 401, try once more after explicit re-refresh
+    if (res.status === 401) {
+      const session = loadSyncSession();
+      if (session) {
+        session.expires_at = 0; // force refresh
+        saveSyncSession(session);
+        const fresh = await ensureFreshToken();
+        if (fresh && fresh.access_token !== s.access_token) {
+          headers.Authorization = "Bearer " + fresh.access_token;
+          const retry = await fetch(`${SUPA_URL}/rest/v1${path}`, Object.assign({}, init, { headers }));
+          if (retry.ok) return retry.status === 204 ? null : retry.json();
+          const tt = await retry.text();
+          throw new Error(`Supabase ${retry.status}: ${tt}`);
+        }
+      }
+    }
     throw new Error(`Supabase ${res.status}: ${t}`);
   }
   return res.status === 204 ? null : res.json();
