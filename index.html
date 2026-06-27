@@ -665,15 +665,17 @@ function getHeatmapCells(weekCount = 13) {
   const byDay = buildActivityByDay();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const totalDays = weekCount * 7;
-  const start = new Date(today);
-  start.setDate(start.getDate() - totalDays + 1);
-  const dow = start.getDay();
-  start.setDate(start.getDate() + (dow === 0 ? -6 : 1 - dow));
+  const todayD = today.getDay();
+  const mondayOffset = todayD === 0 ? -6 : 1 - todayD;
+  const endMonday = new Date(today);
+  endMonday.setDate(today.getDate() + mondayOffset);
+  const startMonday = new Date(endMonday);
+  startMonday.setDate(endMonday.getDate() - (weekCount - 1) * 7);
   const cells = [];
+  const totalDays = weekCount * 7;
   for (let i = 0; i < totalDays; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
+    const d = new Date(startMonday);
+    d.setDate(startMonday.getDate() + i);
     const key = dateKey(d);
     const attempts = byDay[key] || [];
     cells.push({
@@ -722,6 +724,8 @@ function showActivityTip(evt, cell, pin = false) {
 }
 
 function wireActivityHeatmap(container) {
+  const wrap = container.querySelector(".activity-heatmap-wrap");
+  if (wrap) requestAnimationFrame(() => { wrap.scrollLeft = wrap.scrollWidth; });
   container.querySelectorAll(".activity-cell:not(.future)").forEach(cell => {
     cell.addEventListener("mouseenter", (e) => showActivityTip(e, cell));
     cell.addEventListener("focus", (e) => showActivityTip(e, cell));
