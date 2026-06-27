@@ -12,6 +12,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+</script>
 <style>
   :root {
     --bg: #faf7ed; --bg-2: #f5f0e2; --card: #ffffff; --card-2: #fbf7eb;
@@ -157,6 +164,7 @@
   .thumb-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
   .thumb-controls button:hover:not(:disabled) { background: var(--card); border-color: var(--muted-2); }
   .thumb-controls .page-num { min-width: 22px; text-align: center; font-weight: 600; color: var(--text); font-family: var(--serif); }
+  .upload-status { font-size: 11px; color: var(--muted); margin: 2px 0 10px; min-height: 16px; }
   .pdf-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.12s; }
   .pdf-card:hover { background: var(--card-2); }
   .pdf-card .pdf-icon { font-size: 28px; }
@@ -330,6 +338,7 @@
       </label>
     </div>
     <div class="photo-thumbs" id="answerPhotoThumbs"></div>
+    <div class="upload-status" id="answerUploadStatus"></div>
     <label>Quick notes (what worked, what was missing)</label>
     <textarea id="addNotes" placeholder="Introduction was weak · forgot to add diagram · good current affairs link"></textarea>
     <div class="footer">
@@ -368,6 +377,7 @@
       </label>
     </div>
     <div class="photo-thumbs" id="evalPhotoThumbs"></div>
+    <div class="upload-status" id="evalUploadStatus"></div>
     <div class="footer">
       <button class="cancel" onclick="closeAddEval()">Cancel</button>
       <button class="save" onclick="saveAddEval()">Save evaluation</button>
@@ -1081,23 +1091,83 @@ function saveAddEval() {
 }
 
 // ============ PHOTOS ============
+function uploadStatusEl(target) {
+  return document.getElementById(target === "answer" ? "answerUploadStatus" : "evalUploadStatus");
+}
+
+function updateUploadStatus(target) {
+  const arr = target === "answer" ? answerPhotos : evalPhotos;
+  const el = uploadStatusEl(target);
+  if (!el) return;
+  if (!arr.length) { el.textContent = ""; return; }
+  const sizeKB = arr.reduce((s, u) => s + (typeof u === "string" ? Math.ceil(u.length * 0.75 / 1024) : 0), 0);
+  el.textContent = `${arr.length} page(s) · ~${sizeKB} KB · use × to remove, ← → to reorder`;
+}
+
+async function splitPdfToImages(file, onProgress) {
+  if (!window.pdfjsLib) throw new Error("PDF library not loaded — refresh the page");
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    if (onProgress) onProgress(i, pdf.numPages);
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    pages.push(await compressDataUrl(dataUrl, 1400, 0.78));
+  }
+  return pages;
+}
+
+function compressDataUrl(dataUrl, maxW = 1400, q = 0.78) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxW || h > maxW) {
+        const scale = maxW / Math.max(w, h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", q));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 async function handlePhotoUpload(event, target) {
   const files = Array.from(event.target.files || []);
   const arr = target === "answer" ? answerPhotos : evalPhotos;
+  const statusEl = uploadStatusEl(target);
   for (const file of files) {
     try {
       if (file.type === "application/pdf") {
-        // PDFs are not compressed; read as base64 directly
-        if (file.size > 5 * 1024 * 1024) {
-          if (!confirm(`This PDF is ${Math.round(file.size/1024/1024)} MB. Upload anyway? Large PDFs upload slowly to GitHub.`)) continue;
+        if (file.size > 15 * 1024 * 1024) {
+          if (!confirm(`This PDF is ${Math.round(file.size / 1024 / 1024)} MB. Split and upload anyway?`)) continue;
         }
-        const dataUrl = await readAsDataUrl(file);
-        arr.push(dataUrl);
+        if (statusEl) statusEl.textContent = `Splitting ${file.name}…`;
+        const pages = await splitPdfToImages(file, (i, total) => {
+          if (statusEl) statusEl.textContent = `Splitting ${file.name}… page ${i}/${total}`;
+        });
+        arr.push(...pages);
+        if (pages.length) toast(`${pages.length} pages from PDF`);
       } else if (file.type.startsWith("image/")) {
         const dataUrl = await readCompressed(file);
         arr.push(dataUrl);
       }
-    } catch (e) { console.warn("photo/pdf", e); }
+    } catch (e) {
+      console.warn("photo/pdf", e);
+      toast("Failed: " + (e.message || file.name));
+    }
   }
   renderPhotoThumbs(target);
   event.target.value = "";
@@ -1157,6 +1227,7 @@ function renderPhotoThumbs(target) {
     </div>`;
     return `<div class="thumb-wrap">${thumb}${controls}</div>`;
   }).join("");
+  updateUploadStatus(target);
 }
 
 function movePhoto(target, idx, dir) {
