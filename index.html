@@ -81,6 +81,14 @@
   .recent-info { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .recent-info .src-tag { font-size: 10px; padding: 1px 7px; border-radius: 999px; color: #fff; font-weight: 600; letter-spacing: 0.03em; }
   .recent-info .score { color: var(--saffron); font-weight: 600; }
+  .recent-scroll { max-height: min(380px, 42vh); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; margin-bottom: 4px; }
+  .recent-scroll::-webkit-scrollbar { width: 4px; }
+  .recent-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+  .recent-paper-group { margin-bottom: 14px; }
+  .recent-paper-group:last-child { margin-bottom: 0; }
+  .recent-paper-head { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.06em; margin: 0 2px 8px; display: flex; align-items: center; gap: 8px; }
+  .recent-paper-head .cnt { font-weight: 500; color: var(--muted-2); letter-spacing: 0; text-transform: none; }
+  .recent-paper-stripe { width: 3px; height: 14px; border-radius: 2px; flex-shrink: 0; }
 
   .empty { background: var(--card-2); border: 1px dashed var(--line); border-radius: 12px; padding: 28px 20px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.55; }
   .empty .em-title { font-family: var(--serif); font-size: 17px; color: var(--text); margin-bottom: 6px; font-weight: 500; letter-spacing: -0.015em; }
@@ -233,7 +241,7 @@
     <div class="sec-label"><span>Browse by paper</span></div>
     <div class="papers-grid" id="papersGrid"></div>
 
-    <div class="sec-label" id="recentLabel"><span>Recent attempts</span></div>
+    <div class="sec-label" id="recentLabel"><span>Last 30 days</span></div>
     <div id="recentList"></div>
   </section>
 
@@ -275,7 +283,7 @@
   <section class="view" id="view-recent">
     <div class="back-row" onclick="goView('home')"><span class="back">←</span><span class="crumb">Abhyas</span></div>
     <div class="page-title">Recent</div>
-    <div class="page-sub">Last 30 attempts you opened</div>
+    <div class="page-sub">Attempts from the last 90 days · grouped by paper</div>
     <div id="recentFullList"></div>
   </section>
 
@@ -522,6 +530,55 @@ function paperStats(paperKey) {
   return { count: ans.length, evaluated: ans.filter(a => a.evaluation).length };
 }
 
+function getAnswerTimestamp(a) {
+  if (a.attemptDate) {
+    const d = new Date(a.attemptDate + "T12:00:00");
+    if (!isNaN(d.getTime())) return d.getTime();
+  }
+  return a.createdAt || 0;
+}
+
+function answersInLastDays(days, applySourceFilter = false) {
+  const cutoff = Date.now() - days * 86400000;
+  let ans = state.answers;
+  if (applySourceFilter && state.sourceFilter !== "all") {
+    ans = ans.filter(a => a.source === state.sourceFilter);
+  }
+  return ans
+    .filter(a => getAnswerTimestamp(a) >= cutoff)
+    .sort((a, b) => getAnswerTimestamp(b) - getAnswerTimestamp(a));
+}
+
+function renderAttemptsByPaper(answers, emptyMessage) {
+  if (!answers.length) {
+    return `<div class="empty"><div class="em-title">${escapeHtml(emptyMessage)}</div></div>`;
+  }
+  const byPaper = {};
+  answers.forEach(a => {
+    const k = a.paper || "other";
+    if (!byPaper[k]) byPaper[k] = [];
+    byPaper[k].push(a);
+  });
+  const orderedKeys = [
+    ...PAPERS.map(p => p.key).filter(k => byPaper[k]?.length),
+    ...Object.keys(byPaper).filter(k => !PAPERS.find(p => p.key === k))
+  ];
+  return orderedKeys.map(key => {
+    const p = PAPERS.find(x => x.key === key);
+    const items = byPaper[key];
+    const name = p?.name || key;
+    const color = p?.color || "var(--muted)";
+    return `<div class="recent-paper-group">
+      <div class="recent-paper-head">
+        <span class="recent-paper-stripe" style="background:${color}"></span>
+        ${escapeHtml(name)}
+        <span class="cnt">· ${items.length}</span>
+      </div>
+      ${items.map(answerRow).join("")}
+    </div>`;
+  }).join("");
+}
+
 function renderHome() {
   // Stats strip
   const all = state.answers;
@@ -559,17 +616,20 @@ function renderHome() {
     </div>`;
   }).join("");
 
-  // Recent
-  const recent = state.recent.slice(0, 3).map(id => state.answers.find(a => a.id === id)).filter(Boolean);
+  // Last 30 days — scrollable, grouped by paper
+  const recent30 = answersInLastDays(30, true);
   const recentEl = document.getElementById("recentList");
-  if (recent.length === 0 && all.length === 0) {
+  document.getElementById("recentLabel").innerHTML =
+    `<span>Last 30 days</span><span class="more">${recent30.length} attempt${recent30.length === 1 ? "" : "s"}</span>`;
+  if (all.length === 0) {
     recentEl.innerHTML = `<div class="empty">
       <div class="em-title">No attempts yet</div>
       <div>Tap the <b style="color:var(--accent-2)">+</b> button bottom-right to log your first answer.<br>Photograph it, score it, get it evaluated, learn from it.</div>
     </div>`;
+  } else if (recent30.length === 0) {
+    recentEl.innerHTML = `<div class="empty"><div class="em-title">No attempts in the last 30 days</div><div>Change the source filter or add a new attempt.</div></div>`;
   } else {
-    const list = recent.length > 0 ? recent : all.slice(0, 3);
-    recentEl.innerHTML = list.map(answerRow).join("");
+    recentEl.innerHTML = `<div class="recent-scroll">${renderAttemptsByPaper(recent30, "No attempts")}</div>`;
   }
 }
 function setSource(s) { state.sourceFilter = s; save(); renderHome(); }
@@ -870,8 +930,10 @@ function renderSaved() {
 }
 function renderRecent() {
   const el = document.getElementById("recentFullList");
-  const list = state.recent.map(id => state.answers.find(a => a.id === id)).filter(Boolean);
-  el.innerHTML = list.length ? list.map(answerRow).join("") : `<div class="empty"><div class="em-title">No recent</div></div>`;
+  const list = answersInLastDays(90);
+  el.innerHTML = list.length
+    ? renderAttemptsByPaper(list, "No attempts in the last 90 days")
+    : `<div class="empty"><div class="em-title">No attempts in the last 90 days</div></div>`;
 }
 
 // ============ INSIGHTS ============
