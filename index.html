@@ -322,7 +322,7 @@
       <div><label>Year / Test</label><input id="addYear" placeholder="2023 / TS-7"/></div>
     </div>
     <div class="row">
-      <div><label>Self-score</label><input id="addSelfScore" placeholder="9 / 15"/></div>
+      <div><label id="addSelfScoreLabel">Self-score</label><input id="addSelfScore" placeholder="? / ?"/></div>
       <div><label>Time (min)</label><input id="addTime" placeholder="8"/></div>
     </div>
     <label>📷 Photos or PDF of your answer</label>
@@ -356,8 +356,8 @@
       <div><label>Evaluated by</label><input id="evalBy" placeholder="Self / Sir XYZ / Peer name"/></div>
       <div><label>Date</label><input id="evalDate" type="date"/></div>
     </div>
-    <label>Score awarded</label>
-    <input id="evalScore" placeholder="9 / 15"/>
+    <label id="evalScoreLabel">Score awarded</label>
+    <input id="evalScore" placeholder="? / ?"/>
     <label>Detailed comments / feedback</label>
     <textarea id="evalComments" placeholder="Strong analysis but introduction lacked context. Add 1-2 sentences on background. Missed 2 dimensions of the topic..." style="min-height: 120px;"></textarea>
     <label>💚 Strengths (comma-separated tags)</label>
@@ -924,6 +924,7 @@ function openAddAnswer() {
   document.getElementById("addSource").value = "pyq";
   answerPhotos = [];
   renderPhotoThumbs("answer");
+  applyScoreHint("", "addSelfScore", "addSelfScoreLabel", "Self-score");
   document.getElementById("addModal").classList.add("open");
 }
 
@@ -949,6 +950,7 @@ function editAnswer() {
   document.getElementById("addNotes").value = a.notes || "";
   answerPhotos = [...(a.images || [])];
   renderPhotoThumbs("answer");
+  applyScoreHint(a.marks, "addSelfScore", "addSelfScoreLabel", "Self-score");
   document.getElementById("addModal").classList.add("open");
 }
 
@@ -1062,6 +1064,7 @@ function openAddEval() {
     evalPhotos = [];
   }
   renderPhotoThumbs("eval");
+  applyScoreHint(a?.marks, "evalScore", "evalScoreLabel", "Score awarded");
   document.getElementById("evalModal").classList.add("open");
 }
 function closeAddEval() { document.getElementById("evalModal").classList.remove("open"); }
@@ -1278,6 +1281,23 @@ function closeLightbox() {
 }
 
 // ============ HELPERS ============
+function parseTotalMarks(marks) {
+  const m = String(marks || "").trim().match(/\d+/);
+  return m ? parseInt(m[0], 10) : null;
+}
+function scorePlaceholder(marks) {
+  const total = parseTotalMarks(marks);
+  return total ? `? / ${total}` : "? / ?";
+}
+function applyScoreHint(marks, scoreInputId, labelId, labelPrefix) {
+  const total = parseTotalMarks(marks);
+  const scoreEl = document.getElementById(scoreInputId);
+  if (scoreEl) scoreEl.placeholder = scorePlaceholder(marks);
+  if (labelId) {
+    const lbl = document.getElementById(labelId);
+    if (lbl) lbl.textContent = total ? `${labelPrefix} (out of ${total})` : labelPrefix;
+  }
+}
 function escapeHtml(s) { return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function escapeAttr(s) { return escapeHtml(s); }
 function toast(msg) {
@@ -1682,6 +1702,10 @@ async function pushSingleAnswerToCloud(a) {
     toast("Cloud save failed (local saved): " + (e.message || ""));
   }
 }
+
+document.getElementById("addMarks").addEventListener("input", function() {
+  applyScoreHint(this.value, "addSelfScore", "addSelfScoreLabel", "Self-score");
+});
 
 // On app load, if signed in, do a background pull to catch updates from other devices
 if (loadSyncSession()) {

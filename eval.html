@@ -123,8 +123,8 @@
         <div><label>Date</label><input id="evalDate" type="date"/></div>
       </div>
 
-      <label>Marks / score</label>
-      <input id="evalScore" placeholder="9 / 15"/>
+      <label id="evalScoreLabel">Marks / score</label>
+      <input id="evalScore" placeholder="? / ?"/>
 
       <label>Detailed comments</label>
       <textarea id="evalComments" placeholder="Strong analysis but introduction lacked context. Suggest adding 1-2 background sentences. Diagram on page 2 was good."></textarea>
@@ -218,9 +218,24 @@ if (!a) {
   setupSendButtons(a);
 }
 
+function parseTotalMarks(marks) {
+  const m = String(marks || "").trim().match(/\d+/);
+  return m ? parseInt(m[0], 10) : null;
+}
+function scorePlaceholder(marks) {
+  const total = parseTotalMarks(marks);
+  return total ? `? / ${total}` : "? / ?";
+}
+
 function renderAttempt(a) {
   const SOURCES = { pyq: "📘 PYQ", test: "📝 Test", teacher: "👨‍🏫 Teacher's Q", mock: "🎯 Mock", random: "🎲 Random" };
   const PAPERS = { gs1: "GS Paper I", gs2: "GS Paper II", gs3: "GS Paper III", gs4: "GS Paper IV", essay: "Essay", math: "Math Optional" };
+
+  const totalMarks = parseTotalMarks(a.marks);
+  document.getElementById("evalScoreLabel").textContent = totalMarks
+    ? `Marks / score (out of ${totalMarks})`
+    : "Marks / score";
+  document.getElementById("evalScore").placeholder = scorePlaceholder(a.marks);
 
   const meta = [];
   meta.push(`<span class="source">${SOURCES[a.source] || "—"}</span>`);
