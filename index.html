@@ -789,17 +789,10 @@ async function shareForEval() {
   const evalUrl = baseUrl + "eval.html?a=" + encoded;
   const sizeKB = Math.round(evalUrl.length / 1024);
 
-  const greeting = teacher ? teacher + "," : "Sir / Ma'am,";
-
-  // Friendly multi-line message — what teacher will actually read
   const messageBody =
-    greeting + "\n\n" +
-    "I've attempted a UPSC Mains answer and would value your evaluation.\n\n" +
-    "The link below opens a clean page with:\n" +
-    "• The question\n" +
-    "• My handwritten attempt\n" +
-    "• A quick feedback form (all fields optional)\n\n" +
-    "Just fill whatever's helpful — even one score or one comment is gold.\n\n" +
+    "Pranam Sir,\n\n" +
+    "Please evaluate my Mains answer at the link below.\n\n" +
+    "Fill only the fields you find helpful — you can ignore the rest.\n\n" +
     "Thank you,\nSaurav";
 
   // Full message including link (used for clipboard / fallback)
