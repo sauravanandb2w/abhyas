@@ -90,6 +90,37 @@
   .recent-paper-head .cnt { font-weight: 500; color: var(--muted-2); letter-spacing: 0; text-transform: none; }
   .recent-paper-stripe { width: 3px; height: 14px; border-radius: 2px; flex-shrink: 0; }
 
+  /* Writing activity tracker */
+  .activity-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; position: relative; }
+  .activity-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .activity-title { font-family: var(--serif); font-size: 15px; font-weight: 500; letter-spacing: -0.02em; }
+  .activity-meta { font-size: 11px; color: var(--muted); text-align: right; line-height: 1.35; }
+  .activity-meta b { color: var(--text); font-weight: 600; }
+  .activity-streak { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; color: var(--text); }
+  .activity-streak .flame { font-size: 16px; line-height: 1; }
+  .activity-streak-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .activity-heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .activity-heatmap { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; grid-auto-columns: minmax(13px, 1fr); gap: 3px; min-width: 100%; }
+  .activity-cell { aspect-ratio: 1; border-radius: 3px; background: var(--bg-2); border: 1px solid var(--line-soft); cursor: pointer; transition: box-shadow 0.12s; }
+  .activity-cell.l1 { background: #ede4d8; border-color: #e0d4c4; }
+  .activity-cell.l2 { background: #e0c4b0; border-color: #d4b09a; }
+  .activity-cell.l3 { background: #d9977a; border-color: #cc785c; }
+  .activity-cell.l4 { background: var(--accent); border-color: #a05838; }
+  .activity-cell.today { box-shadow: 0 0 0 2px var(--accent); z-index: 1; }
+  .activity-cell.future { opacity: 0.22; pointer-events: none; }
+  .activity-cell:hover:not(.future), .activity-cell:focus-visible:not(.future) { box-shadow: 0 0 0 2px var(--accent-2); outline: none; }
+  .activity-legend { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 10px; color: var(--muted); }
+  .activity-legend-cells { display: flex; gap: 3px; align-items: center; }
+  .activity-legend-cells span { width: 11px; height: 11px; border-radius: 2px; border: 1px solid var(--line-soft); display: inline-block; }
+  .activity-legend-cells .l0 { background: var(--bg-2); }
+  .activity-legend-cells .l1 { background: #ede4d8; }
+  .activity-legend-cells .l2 { background: #e0c4b0; }
+  .activity-legend-cells .l3 { background: #d9977a; }
+  .activity-legend-cells .l4 { background: var(--accent); }
+  .activity-tip { position: fixed; z-index: 400; background: var(--text); color: var(--bg); padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.45; max-width: 240px; pointer-events: none; box-shadow: 0 8px 24px rgba(31,28,20,0.18); opacity: 0; transition: opacity 0.12s; }
+  .activity-tip.visible { opacity: 1; }
+  .activity-tip strong { font-weight: 600; display: block; margin-bottom: 4px; }
+
   .empty { background: var(--card-2); border: 1px dashed var(--line); border-radius: 12px; padding: 28px 20px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.55; }
   .empty .em-title { font-family: var(--serif); font-size: 17px; color: var(--text); margin-bottom: 6px; font-weight: 500; letter-spacing: -0.015em; }
 
@@ -235,6 +266,8 @@
 
     <div class="stats-strip" id="statsStrip"></div>
 
+    <div id="activityTracker"></div>
+
     <div class="sec-label"><span>Filter by source</span></div>
     <div class="source-chips" id="sourceChips"></div>
 
@@ -304,6 +337,7 @@
   <button class="nav-btn" data-view="recent" onclick="goView('recent')"><span class="nav-icon">↻</span><span>Recent</span></button>
   <button class="nav-btn" data-view="insights" onclick="goView('insights')"><span class="nav-icon">◐</span><span>Insights</span></button>
 </div>
+<div class="activity-tip" id="activityTip" hidden></div>
 
 <!-- Add answer modal -->
 <div class="modal-bg" id="addModal" onclick="if(event.target===this)closeAddAnswer()">
@@ -538,6 +572,242 @@ function getAnswerTimestamp(a) {
   return a.createdAt || 0;
 }
 
+function dateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getAnswerDateKey(a) {
+  if (a.attemptDate) return a.attemptDate.slice(0, 10);
+  if (a.createdAt) return dateKey(new Date(a.createdAt));
+  return null;
+}
+
+function buildActivityByDay() {
+  const byDay = {};
+  for (const a of state.answers) {
+    const key = getAnswerDateKey(a);
+    if (!key) continue;
+    if (!byDay[key]) byDay[key] = [];
+    byDay[key].push(a);
+  }
+  return byDay;
+}
+
+function dayActivityLevel(count) {
+  if (count <= 0) return 0;
+  if (count === 1) return 1;
+  if (count === 2) return 2;
+  if (count <= 4) return 3;
+  return 4;
+}
+
+function computeWritingStreak(byDay) {
+  let streak = 0;
+  const cursor = new Date();
+  const today = dateKey();
+  for (;;) {
+    const key = dateKey(cursor);
+    if ((byDay[key]?.length || 0) > 0) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    } else if (key === today) {
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+    if (streak > 4000) break;
+  }
+  return streak;
+}
+
+function computeLongestStreak(byDay) {
+  const keys = Object.keys(byDay).filter(k => byDay[k].length > 0).sort();
+  if (!keys.length) return 0;
+  let longest = 0;
+  let run = 0;
+  const start = new Date(keys[0] + "T12:00:00");
+  const end = new Date(keys[keys.length - 1] + "T12:00:00");
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    if ((byDay[dateKey(d)]?.length || 0) > 0) {
+      run += 1;
+      longest = Math.max(longest, run);
+    } else {
+      run = 0;
+    }
+  }
+  return longest;
+}
+
+function formatDayInsight(key, attempts) {
+  const d = new Date(key + "T12:00:00");
+  const isToday = key === dateKey();
+  const label = d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  if (!attempts?.length) {
+    return `<strong>${isToday ? "Today · " : ""}${escapeHtml(label)}</strong>No answers logged`;
+  }
+  const evaluated = attempts.filter(a => a.evaluation).length;
+  const papers = {};
+  attempts.forEach(a => {
+    const name = PAPERS.find(x => x.key === a.paper)?.name || a.paper || "—";
+    papers[name] = (papers[name] || 0) + 1;
+  });
+  const paperLine = Object.entries(papers).map(([p, n]) => `${p} (${n})`).join(" · ");
+  return `<strong>${isToday ? "Today · " : ""}${escapeHtml(label)}</strong>` +
+    `${attempts.length} answer${attempts.length === 1 ? "" : "s"} written<br>` +
+    `${evaluated} evaluated · ${attempts.length - evaluated} pending` +
+    (paperLine ? `<br>${escapeHtml(paperLine)}` : "");
+}
+
+function getHeatmapCells(weekCount = 13) {
+  const byDay = buildActivityByDay();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const totalDays = weekCount * 7;
+  const start = new Date(today);
+  start.setDate(start.getDate() - totalDays + 1);
+  const dow = start.getDay();
+  start.setDate(start.getDate() + (dow === 0 ? -6 : 1 - dow));
+  const cells = [];
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = dateKey(d);
+    const attempts = byDay[key] || [];
+    cells.push({
+      key,
+      attempts,
+      count: attempts.length,
+      level: dayActivityLevel(attempts.length),
+      isFuture: d > today,
+      isToday: key === dateKey(today),
+    });
+  }
+  return cells;
+}
+
+let activityTipPinned = false;
+
+function hideActivityTip() {
+  if (activityTipPinned) return;
+  const tip = document.getElementById("activityTip");
+  if (!tip) return;
+  tip.classList.remove("visible");
+  tip.hidden = true;
+}
+
+function showActivityTip(evt, cell, pin = false) {
+  const tip = document.getElementById("activityTip");
+  if (!tip || cell.classList.contains("future")) return;
+  activityTipPinned = pin;
+  const key = cell.dataset.date;
+  const byDay = buildActivityByDay();
+  tip.innerHTML = formatDayInsight(key, byDay[key] || []);
+  tip.hidden = false;
+  requestAnimationFrame(() => {
+    const pad = 12;
+    const rect = cell.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - tipRect.width / 2;
+    let top = rect.top - tipRect.height - 10;
+    if (top < pad) top = rect.bottom + 10;
+    left = Math.max(pad, Math.min(left, window.innerWidth - tipRect.width - pad));
+    top = Math.max(pad, Math.min(top, window.innerHeight - tipRect.height - pad));
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+    tip.classList.add("visible");
+  });
+}
+
+function wireActivityHeatmap(container) {
+  container.querySelectorAll(".activity-cell:not(.future)").forEach(cell => {
+    cell.addEventListener("mouseenter", (e) => showActivityTip(e, cell));
+    cell.addEventListener("focus", (e) => showActivityTip(e, cell));
+    cell.addEventListener("mouseleave", hideActivityTip);
+    cell.addEventListener("blur", hideActivityTip);
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (activityTipPinned && cell === container.querySelector(".activity-cell.pinned")) {
+        activityTipPinned = false;
+        container.querySelectorAll(".activity-cell.pinned").forEach(c => c.classList.remove("pinned"));
+        hideActivityTip();
+        return;
+      }
+      container.querySelectorAll(".activity-cell.pinned").forEach(c => c.classList.remove("pinned"));
+      cell.classList.add("pinned");
+      showActivityTip(e, cell, true);
+    });
+  });
+}
+
+function renderActivityTracker() {
+  const el = document.getElementById("activityTracker");
+  if (!el) return;
+  const byDay = buildActivityByDay();
+  const cells = getHeatmapCells(13);
+  const todayKey = dateKey();
+  const todayCount = (byDay[todayKey] || []).length;
+  const streak = computeWritingStreak(byDay);
+  const longest = Math.max(computeLongestStreak(byDay), streak);
+  const activeDays = Object.keys(byDay).filter(k => byDay[k].length > 0).length;
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  weekAgo.setHours(0, 0, 0, 0);
+  let weekTotal = 0;
+  for (const [key, list] of Object.entries(byDay)) {
+    if (new Date(key + "T12:00:00") >= weekAgo) weekTotal += list.length;
+  }
+  const streakLabel = streak === 0
+    ? (todayCount ? "Writing today — keep it up" : "Log an answer to start your streak")
+    : streak === 1 ? "1 day in a row" : `${streak} days in a row`;
+
+  const heatmapHtml = cells.map(cell => {
+    const cls = [
+      "activity-cell",
+      cell.level ? `l${cell.level}` : "",
+      cell.isToday ? "today" : "",
+      cell.isFuture ? "future" : "",
+    ].filter(Boolean).join(" ");
+    const aria = cell.count
+      ? `${cell.key}: ${cell.count} answer${cell.count === 1 ? "" : "s"}`
+      : `${cell.key}: no answers`;
+    return `<span class="${cls}" tabindex="0" role="img" aria-label="${escapeAttr(aria)}" data-date="${escapeAttr(cell.key)}"></span>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div class="activity-head">
+      <div class="activity-title">✍ Writing tracker</div>
+      <div class="activity-meta">Last 13 weeks · <b>${activeDays}</b> active day${activeDays === 1 ? "" : "s"}</div>
+    </div>
+    <div class="activity-streak">
+      <span class="flame" aria-hidden="true">🔥</span>
+      <div>
+        <div>${escapeHtml(streakLabel)}</div>
+        <div class="activity-streak-sub">Longest ${longest} day${longest === 1 ? "" : "s"} · ${weekTotal} this week · ${todayCount} today</div>
+      </div>
+    </div>
+    <div class="activity-heatmap-wrap">
+      <div class="activity-heatmap">${heatmapHtml}</div>
+    </div>
+    <div class="activity-legend">
+      <span>Less</span>
+      <span class="activity-legend-cells">
+        <span class="l0"></span><span class="l1"></span><span class="l2"></span><span class="l3"></span><span class="l4"></span>
+      </span>
+      <span>More answers</span>
+    </div>`;
+  wireActivityHeatmap(el);
+}
+
+document.addEventListener("click", () => {
+  if (!activityTipPinned) return;
+  activityTipPinned = false;
+  document.querySelectorAll(".activity-cell.pinned").forEach(c => c.classList.remove("pinned"));
+  hideActivityTip();
+});
+
 function answersInLastDays(days, applySourceFilter = false) {
   const cutoff = Date.now() - days * 86400000;
   let ans = state.answers;
@@ -593,6 +863,8 @@ function renderHome() {
     <div class="stat-cell"><div class="v">${thisWeek}</div><div class="l">This week</div></div>
     <div class="stat-cell"><div class="v">${evaluated}</div><div class="l">Evaluated</div></div>
     <div class="stat-cell accent"><div class="v">${all.length - evaluated}</div><div class="l">Pending eval</div></div>`;
+
+  renderActivityTracker();
 
   // Source chips
   const chips = [
